@@ -2075,7 +2075,6 @@ end
 
 function ESPLibrary:Initialize(_Character)
     if not Fluent then
-        VisualsHandler:ClearVisuals()
         return nil
     elseif typeof(_Character) ~= "Instance" then
         return nil
@@ -2091,18 +2090,39 @@ function ESPLibrary:Initialize(_Character)
         end
     }
     self.Character = _Character
-    self.ESPBox = VisualsHandler:Visualize("ESPBox")
-    self.NameESP = VisualsHandler:Visualize("NameESP")
-    self.HealthESP = VisualsHandler:Visualize("NameESP")
-    self.MagnitudeESP = VisualsHandler:Visualize("NameESP")
-    self.PremiumESP = VisualsHandler:Visualize("NameESP")
-    self.TracerESP = VisualsHandler:Visualize("TracerESP")
-    table.insert(Visuals, self.ESPBox)
-    table.insert(Visuals, self.NameESP)
-    table.insert(Visuals, self.HealthESP)
-    table.insert(Visuals, self.MagnitudeESP)
-    table.insert(Visuals, self.PremiumESP)
-    table.insert(Visuals, self.TracerESP)
+    self.Highlight = Instance.new("Highlight")
+    self.Highlight.Name = "GreenwareHighlight"
+    self.Highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    self.Highlight.Parent = self.Character
+    self.Billboard = Instance.new("BillboardGui")
+    self.Billboard.Name = "GreenwareBillboard"
+    self.Billboard.Size = UDim2.new(0, 200, 0, 60)
+    self.Billboard.StudsOffset = Vector3.new(0, 3, 0)
+    self.Billboard.AlwaysOnTop = true
+    self.Billboard.Parent = self.Character
+    self.NameLabel = Instance.new("TextLabel")
+    self.NameLabel.BackgroundTransparency = 1
+    self.NameLabel.Size = UDim2.new(1, 0, 0, 20)
+    self.NameLabel.Font = Enum.Font.SourceSansBold
+    self.NameLabel.TextSize = 16
+    self.NameLabel.TextStrokeTransparency = 0
+    self.NameLabel.Parent = self.Billboard
+    self.HealthLabel = Instance.new("TextLabel")
+    self.HealthLabel.BackgroundTransparency = 1
+    self.HealthLabel.Position = UDim2.new(0, 0, 0, 20)
+    self.HealthLabel.Size = UDim2.new(1, 0, 0, 18)
+    self.HealthLabel.Font = Enum.Font.SourceSans
+    self.HealthLabel.TextSize = 14
+    self.HealthLabel.TextStrokeTransparency = 0
+    self.HealthLabel.Parent = self.Billboard
+    self.DistanceLabel = Instance.new("TextLabel")
+    self.DistanceLabel.BackgroundTransparency = 1
+    self.DistanceLabel.Position = UDim2.new(0, 0, 0, 38)
+    self.DistanceLabel.Size = UDim2.new(1, 0, 0, 18)
+    self.DistanceLabel.Font = Enum.Font.SourceSans
+    self.DistanceLabel.TextSize = 14
+    self.DistanceLabel.TextStrokeTransparency = 0
+    self.DistanceLabel.Parent = self.Billboard
     local Head = self.Character:FindFirstChild("Head")
     local HumanoidRootPart = self.Character:FindFirstChild("HumanoidRootPart")
     local Humanoid = self.Character:FindFirstChildWhichIsA("Humanoid")
@@ -2115,49 +2135,38 @@ function ESPLibrary:Initialize(_Character)
         local HeadPosition = workspace.CurrentCamera:WorldToViewportPoint(Head.Position)
         local TopPosition = workspace.CurrentCamera:WorldToViewportPoint(Head.Position + Vector3.new(0, 0.5, 0))
         local BottomPosition = workspace.CurrentCamera:WorldToViewportPoint(HumanoidRootPart.Position - Vector3.new(0, 3, 0))
-        if IsInViewport then
-            self.ESPBox.Size = Vector2.new(2350 / HumanoidRootPartPosition.Z, TopPosition.Y - BottomPosition.Y)
-            self.ESPBox.Position = Vector2.new(HumanoidRootPartPosition.X - self.ESPBox.Size.X / 2, HumanoidRootPartPosition.Y - self.ESPBox.Size.Y / 2)
-            local displayName = self:GetDisplayName()
-            self.NameESP.Text = Aiming and IsReady(Target) and self.Character == Target and string.format("🎯@%s🎯", displayName) or string.format("@%s", displayName)
-            self.NameESP.Position = Vector2.new(HumanoidRootPartPosition.X, HumanoidRootPartPosition.Y + self.ESPBox.Size.Y / 2 - 25)
-            self.HealthESP.Text = string.format("[%s%%]", MathHandler:Abbreviate(Humanoid.Health))
-            self.HealthESP.Position = Vector2.new(HumanoidRootPartPosition.X, HeadPosition.Y)
-            self.MagnitudeESP.Text = string.format("[%sm]", Player.Character and Player.Character:FindFirstChild("Head") and Player.Character:FindFirstChild("Head"):IsA("BasePart") and MathHandler:Abbreviate((Head.Position - Player.Character:FindFirstChild("Head").Position).Magnitude) or "?")
-            self.MagnitudeESP.Position = Vector2.new(HumanoidRootPartPosition.X, HumanoidRootPartPosition.Y)
-            self.PremiumESP.Text = PremiumLabels[Random.new():NextInteger(1, #PremiumLabels)]
-            self.PremiumESP.Position = Vector2.new(HumanoidRootPartPosition.X, HumanoidRootPartPosition.Y - self.ESPBox.Size.Y / 2)
-            self.TracerESP.From = Vector2.new(workspace.CurrentCamera.ViewportSize.X / 2, workspace.CurrentCamera.ViewportSize.Y)
-            self.TracerESP.To = Vector2.new(HumanoidRootPartPosition.X, HumanoidRootPartPosition.Y - self.ESPBox.Size.Y / 2)
-            if Configuration.ESPUseTeamColour and not Configuration.RainbowVisuals and not self.IsNPC and self.Player and self.Player.TeamColor and self.Player.TeamColor.Color then
-                local TeamColour = self.Player.TeamColor.Color
-                local InvertedTeamColour = Color3.fromRGB(255 - TeamColour.R * 255, 255 - TeamColour.G * 255, 255 - TeamColour.B * 255)
-                self.ESPBox.Color = TeamColour
-                self.NameESP.OutlineColor = InvertedTeamColour
-                self.NameESP.Color = TeamColour
-                self.HealthESP.OutlineColor = InvertedTeamColour
-                self.HealthESP.Color = TeamColour
-                self.MagnitudeESP.OutlineColor = InvertedTeamColour
-                self.MagnitudeESP.Color = TeamColour
-                self.PremiumESP.OutlineColor = InvertedTeamColour
-                self.PremiumESP.Color = TeamColour
-                self.TracerESP.Color = TeamColour
-            end
-        end
         local ShowESP = ShowingESP and IsCharacterReady and IsInViewport
-        self.ESPBox.Visible = Configuration.ESPBox and ShowESP
-        self.NameESP.Visible = Configuration.NameESP and ShowESP
-        self.HealthESP.Visible = Configuration.HealthESP and ShowESP
-        self.MagnitudeESP.Visible = Configuration.MagnitudeESP and ShowESP
-        self.PremiumESP.Visible = not self.IsNPC and Configuration.NameESP and self.Player:IsInGroup(tonumber(Fluent.Address, 8)) and ShowESP
-        self.TracerESP.Visible = Configuration.TracerESP and ShowESP
+        self.Billboard.Enabled = ShowESP and (Configuration.NameESP or Configuration.HealthESP or Configuration.MagnitudeESP)
+        self.Highlight.Enabled = ShowESP and Configuration.ESPBox
+        self.Billboard.Adornee = HumanoidRootPart
+        local displayName = self:GetDisplayName()
+        self.NameLabel.Text = Aiming and IsReady(Target) and self.Character == Target and string.format("🎯@%s🎯", displayName) or string.format("@%s", displayName)
+        self.NameLabel.Visible = Configuration.NameESP
+        self.HealthLabel.Text = string.format("[%s%%]", MathHandler:Abbreviate(Humanoid.Health))
+        self.HealthLabel.Visible = Configuration.HealthESP
+        self.DistanceLabel.Text = string.format("[%sm]", Player.Character and Player.Character:FindFirstChild("Head") and Player.Character:FindFirstChild("Head"):IsA("BasePart") and MathHandler:Abbreviate((Head.Position - Player.Character:FindFirstChild("Head").Position).Magnitude) or "?")
+        self.DistanceLabel.Visible = Configuration.MagnitudeESP
+        local baseColour = Configuration.ESPColour
+        local outlineColour = Configuration.NameESPOutlineColour
+        if Configuration.ESPUseTeamColour and not Configuration.RainbowVisuals and not self.IsNPC and self.Player and self.Player.TeamColor and self.Player.TeamColor.Color then
+            baseColour = self.Player.TeamColor.Color
+            outlineColour = Color3.fromRGB(255 - baseColour.R * 255, 255 - baseColour.G * 255, 255 - baseColour.B * 255)
+        end
+        self.Highlight.FillColor = baseColour
+        self.Highlight.OutlineColor = outlineColour
+        self.NameLabel.TextColor3 = baseColour
+        self.NameLabel.TextStrokeColor3 = outlineColour
+        self.HealthLabel.TextColor3 = baseColour
+        self.HealthLabel.TextStrokeColor3 = outlineColour
+        self.DistanceLabel.TextColor3 = baseColour
+        self.DistanceLabel.TextStrokeColor3 = outlineColour
     end
     return self
 end
 
 function ESPLibrary:Visualize()
     if not Fluent then
-        return VisualsHandler:ClearVisuals()
+        return
     elseif not self.Character then
         return self:Disconnect()
     end
@@ -2173,89 +2182,52 @@ function ESPLibrary:Visualize()
         local HeadPosition = workspace.CurrentCamera:WorldToViewportPoint(Head.Position)
         local TopPosition = workspace.CurrentCamera:WorldToViewportPoint(Head.Position + Vector3.new(0, 0.5, 0))
         local BottomPosition = workspace.CurrentCamera:WorldToViewportPoint(HumanoidRootPart.Position - Vector3.new(0, 3, 0))
-        if IsInViewport then
-            self.ESPBox.Size = Vector2.new(2350 / HumanoidRootPartPosition.Z, TopPosition.Y - BottomPosition.Y)
-            self.ESPBox.Position = Vector2.new(HumanoidRootPartPosition.X - self.ESPBox.Size.X / 2, HumanoidRootPartPosition.Y - self.ESPBox.Size.Y / 2)
-            self.ESPBox.Thickness = Configuration.ESPThickness
-            self.ESPBox.Transparency = Configuration.ESPOpacity
-            self.ESPBox.Filled = Configuration.ESPBoxFilled
-            local displayName = self:GetDisplayName()
-            self.NameESP.Text = Aiming and IsReady(Target) and self.Character == Target and string.format("🎯@%s🎯", displayName) or string.format("@%s", displayName)
-            self.NameESP.Font = getfenv().Drawing.Fonts and getfenv().Drawing.Fonts[Configuration.NameESPFont]
-            self.NameESP.Size = Configuration.NameESPSize
-            self.NameESP.Transparency = Configuration.ESPOpacity
-            self.NameESP.Position = Vector2.new(HumanoidRootPartPosition.X, HumanoidRootPartPosition.Y + self.ESPBox.Size.Y / 2 - 25)
-            self.HealthESP.Text = string.format("[%s%%]", MathHandler:Abbreviate(Humanoid.Health))
-            self.HealthESP.Font = getfenv().Drawing.Fonts and getfenv().Drawing.Fonts[Configuration.NameESPFont]
-            self.HealthESP.Size = Configuration.NameESPSize
-            self.HealthESP.Transparency = Configuration.ESPOpacity
-            self.HealthESP.Position = Vector2.new(HumanoidRootPartPosition.X, HeadPosition.Y)
-            self.MagnitudeESP.Text = string.format("[%sm]", Player.Character and Player.Character:FindFirstChild("Head") and Player.Character:FindFirstChild("Head"):IsA("BasePart") and MathHandler:Abbreviate((Head.Position - Player.Character:FindFirstChild("Head").Position).Magnitude) or "?")
-            self.MagnitudeESP.Font = getfenv().Drawing.Fonts and getfenv().Drawing.Fonts[Configuration.NameESPFont]
-            self.MagnitudeESP.Size = Configuration.NameESPSize
-            self.MagnitudeESP.Transparency = Configuration.ESPOpacity
-            self.MagnitudeESP.Position = Vector2.new(HumanoidRootPartPosition.X, HumanoidRootPartPosition.Y)
-            self.PremiumESP.Text = PremiumLabels[Random.new():NextInteger(1, #PremiumLabels)]
-            self.PremiumESP.Font = getfenv().Drawing.Fonts and getfenv().Drawing.Fonts[Configuration.NameESPFont]
-            self.PremiumESP.Size = Configuration.NameESPSize
-            self.PremiumESP.Transparency = Configuration.ESPOpacity
-            self.PremiumESP.Position = Vector2.new(HumanoidRootPartPosition.X, HumanoidRootPartPosition.Y - self.ESPBox.Size.Y / 2)
-            self.TracerESP.Thickness = Configuration.ESPThickness
-            self.TracerESP.Transparency = Configuration.ESPOpacity
-            self.TracerESP.From = Vector2.new(workspace.CurrentCamera.ViewportSize.X / 2, workspace.CurrentCamera.ViewportSize.Y)
-            self.TracerESP.To = Vector2.new(HumanoidRootPartPosition.X, HumanoidRootPartPosition.Y - self.ESPBox.Size.Y / 2)
-            if Configuration.ESPUseTeamColour and not Configuration.RainbowVisuals and not self.IsNPC and self.Player and self.Player.TeamColor and self.Player.TeamColor.Color then
-                local TeamColour = self.Player.TeamColor.Color
-                local InvertedTeamColour = Color3.fromRGB(255 - TeamColour.R * 255, 255 - TeamColour.G * 255, 255 - TeamColour.B * 255)
-                self.ESPBox.Color = TeamColour
-                self.NameESP.OutlineColor = InvertedTeamColour
-                self.NameESP.Color = TeamColour
-                self.HealthESP.OutlineColor = InvertedTeamColour
-                self.HealthESP.Color = TeamColour
-                self.MagnitudeESP.OutlineColor = InvertedTeamColour
-                self.MagnitudeESP.Color = TeamColour
-                self.PremiumESP.OutlineColor = InvertedTeamColour
-                self.PremiumESP.Color = TeamColour
-                self.TracerESP.Color = TeamColour
-            else
-                self.ESPBox.Color = Configuration.ESPColour
-                self.NameESP.OutlineColor = Configuration.NameESPOutlineColour
-                self.NameESP.Color = Configuration.ESPColour
-                self.HealthESP.OutlineColor = Configuration.NameESPOutlineColour
-                self.HealthESP.Color = Configuration.ESPColour
-                self.MagnitudeESP.OutlineColor = Configuration.NameESPOutlineColour
-                self.MagnitudeESP.Color = Configuration.ESPColour
-                self.PremiumESP.OutlineColor = Configuration.NameESPOutlineColour
-                self.PremiumESP.Color = Configuration.ESPColour
-                self.TracerESP.Color = Configuration.ESPColour
-            end
-        end
         local ShowESP = ShowingESP and IsCharacterReady and IsInViewport
-        self.ESPBox.Visible = Configuration.ESPBox and ShowESP
-        self.NameESP.Visible = Configuration.NameESP and ShowESP
-        self.HealthESP.Visible = Configuration.HealthESP and ShowESP
-        self.MagnitudeESP.Visible = Configuration.MagnitudeESP and ShowESP
-        self.PremiumESP.Visible = not self.IsNPC and Configuration.NameESP and self.Player:IsInGroup(tonumber(Fluent.Address, 8)) and ShowESP
-        self.TracerESP.Visible = Configuration.TracerESP and ShowESP
+        self.Billboard.Enabled = ShowESP and (Configuration.NameESP or Configuration.HealthESP or Configuration.MagnitudeESP)
+        self.Highlight.Enabled = ShowESP and Configuration.ESPBox
+        self.Billboard.Adornee = HumanoidRootPart
+        local displayName = self:GetDisplayName()
+        self.NameLabel.Text = Aiming and IsReady(Target) and self.Character == Target and string.format("🎯@%s🎯", displayName) or string.format("@%s", displayName)
+        self.NameLabel.Visible = Configuration.NameESP
+        self.HealthLabel.Text = string.format("[%s%%]", MathHandler:Abbreviate(Humanoid.Health))
+        self.HealthLabel.Visible = Configuration.HealthESP
+        self.DistanceLabel.Text = string.format("[%sm]", Player.Character and Player.Character:FindFirstChild("Head") and Player.Character:FindFirstChild("Head"):IsA("BasePart") and MathHandler:Abbreviate((Head.Position - Player.Character:FindFirstChild("Head").Position).Magnitude) or "?")
+        self.DistanceLabel.Visible = Configuration.MagnitudeESP
+        local baseColour = Configuration.ESPColour
+        local outlineColour = Configuration.NameESPOutlineColour
+        if Configuration.ESPUseTeamColour and not Configuration.RainbowVisuals and not self.IsNPC and self.Player and self.Player.TeamColor and self.Player.TeamColor.Color then
+            baseColour = self.Player.TeamColor.Color
+            outlineColour = Color3.fromRGB(255 - baseColour.R * 255, 255 - baseColour.G * 255, 255 - baseColour.B * 255)
+        end
+        self.Highlight.FillColor = baseColour
+        self.Highlight.OutlineColor = outlineColour
+        self.NameLabel.TextColor3 = baseColour
+        self.NameLabel.TextStrokeColor3 = outlineColour
+        self.HealthLabel.TextColor3 = baseColour
+        self.HealthLabel.TextStrokeColor3 = outlineColour
+        self.DistanceLabel.TextColor3 = baseColour
+        self.DistanceLabel.TextStrokeColor3 = outlineColour
     else
-        self.ESPBox.Visible = false
-        self.NameESP.Visible = false
-        self.HealthESP.Visible = false
-        self.MagnitudeESP.Visible = false
-        self.PremiumESP.Visible = false
-        self.TracerESP.Visible = false
+        if self.Highlight then
+            self.Highlight.Enabled = false
+        end
+        if self.Billboard then
+            self.Billboard.Enabled = false
+        end
     end
 end
 
 function ESPLibrary:Disconnect()
     self.Player = nil
     self.Character = nil
-    VisualsHandler:ClearVisual(self.ESPBox)
-    VisualsHandler:ClearVisual(self.NameESP)
-    VisualsHandler:ClearVisual(self.HealthESP)
-    VisualsHandler:ClearVisual(self.MagnitudeESP)
-    VisualsHandler:ClearVisual(self.PremiumESP)
-    VisualsHandler:ClearVisual(self.TracerESP)
+    if self.Highlight then
+        self.Highlight:Destroy()
+        self.Highlight = nil
+    end
+    if self.Billboard then
+        self.Billboard:Destroy()
+        self.Billboard = nil
+    end
 end
 
 
