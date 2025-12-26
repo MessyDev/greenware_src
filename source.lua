@@ -1826,6 +1826,10 @@ local function IsReady(Target)
             RaycastParameters.FilterDescendantsInstances = { Player.Character }
             RaycastParameters.IgnoreWater = not Configuration.WaterCheck
             local RaycastResult = workspace:Raycast(NativePart.Position, RayDirection, RaycastParameters)
+            while RaycastResult and RaycastResult.Instance and (RaycastResult.Instance.Transparency == 1 or (RaycastResult.Instance:IsA("ForceField") and not RaycastResult.Instance.CanCollide)) do
+                table.insert(RaycastParameters.FilterDescendantsInstances, RaycastResult.Instance)
+                RaycastResult = workspace:Raycast(NativePart.Position, RayDirection, RaycastParameters)
+            end
             if not RaycastResult or not RaycastResult.Instance or not RaycastResult.Instance:IsDescendantOf(Target) then
                 return false
             end
