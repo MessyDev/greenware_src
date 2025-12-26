@@ -2264,8 +2264,19 @@ local TrackingHandler = {}
 
 local Tracking = {}
 local Connections = {}
+local MaxTrackedESP = 200
+local function GetTrackedCount()
+    local Count = 0
+    for _, _ in next, Tracking do
+        Count = Count + 1
+    end
+    return Count
+end
 
 function TrackingHandler:VisualizeESP()
+    if not ShowingESP and not Configuration.SmartESP then
+        return
+    end
     for _, Tracked in next, Tracking do
         Tracked:Visualize()
     end
@@ -2305,6 +2316,15 @@ end
 
 local function CharacterAdded(_Character)
     if typeof(_Character) == "Instance" then
+        if Tracking[_Character.UniqueId] then
+            return
+        end
+        if MaxTrackedESP and GetTrackedCount() >= MaxTrackedESP then
+            return
+        end
+        if not _Character:FindFirstChildWhichIsA("Humanoid") or not _Character:FindFirstChild("HumanoidRootPart") then
+            return
+        end
         Tracking[_Character.UniqueId] = ESPLibrary:Initialize(_Character)
     end
 end
