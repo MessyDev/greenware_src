@@ -2268,12 +2268,36 @@ local Connections = {}
 local MaxTrackedESP = 200
 local ESPUpdateInterval = 0.05
 local LastESPUpdate = 0
+local ESPQueueDelay = 0.02
+local ESPQueue = {}
+local ESPQueueRunning = false
 local function GetTrackedCount()
     local Count = 0
     for _, _ in next, Tracking do
         Count = Count + 1
     end
     return Count
+end
+
+local function ProcessESPQueue()
+    if ESPQueueRunning then
+        return
+    end
+    ESPQueueRunning = true
+    task.spawn(function()
+        while #ESPQueue > 0 do
+            local _Character = table.remove(ESPQueue, 1)
+            if _Character and _Character.Parent then
+                if not Tracking[_Character.UniqueId] and (not MaxTrackedESP or GetTrackedCount() < MaxTrackedESP) then
+                    if _Character:FindFirstChildWhichIsA("Humanoid") and _Character:FindFirstChild("HumanoidRootPart") then
+                        Tracking[_Character.UniqueId] = ESPLibrary:Initialize(_Character)
+                    end
+                end
+            end
+            task.wait(ESPQueueDelay)
+        end
+        ESPQueueRunning = false
+    end)
 end
 
 function TrackingHandler:VisualizeESP()
@@ -2326,13 +2350,11 @@ local function CharacterAdded(_Character)
         if Tracking[_Character.UniqueId] then
             return
         end
-        if MaxTrackedESP and GetTrackedCount() >= MaxTrackedESP then
+        if MaxTrackedESP and GetTrackedCount() + #ESPQueue >= MaxTrackedESP then
             return
         end
-        if not _Character:FindFirstChildWhichIsA("Humanoid") or not _Character:FindFirstChild("HumanoidRootPart") then
-            return
-        end
-        Tracking[_Character.UniqueId] = ESPLibrary:Initialize(_Character)
+        table.insert(ESPQueue, _Character)
+        ProcessESPQueue()
     end
 end
 
