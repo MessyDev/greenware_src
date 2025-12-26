@@ -2235,6 +2235,19 @@ local LastESPUpdate = 0
 local ESPQueueDelay = 0.06
 local ESPUpdateBatch = 15
 local LastESPKey = nil
+local ESPQueued = {}
+local function GetCharacterKey(Character)
+    if typeof(Character) == "Instance" then
+        local ok, id = pcall(function()
+            return Character.UniqueId
+        end)
+        if ok and id then
+            return id
+        end
+        return Character:GetDebugId()
+    end
+    return nil
+end
 local ESPQueue = {}
 local ESPQueueRunning = false
 local function GetTrackedCount()
@@ -2254,10 +2267,17 @@ local function ProcessESPQueue()
         while #ESPQueue > 0 do
             local _Character = table.remove(ESPQueue, 1)
             if _Character and _Character.Parent then
-                if not Tracking[_Character.UniqueId] and (not MaxTrackedESP or GetTrackedCount() < MaxTrackedESP) then
+                local key = GetCharacterKey(_Character)
+                if key and not Tracking[key] and (not MaxTrackedESP or GetTrackedCount() < MaxTrackedESP) then
                     if _Character:FindFirstChildWhichIsA("Humanoid") and _Character:FindFirstChild("HumanoidRootPart") then
-                        Tracking[_Character.UniqueId] = ESPLibrary:Initialize(_Character)
+                        Tracking[key] = ESPLibrary:Initialize(_Character)
                     end
+                end
+            end
+            if _Character then
+                local key = GetCharacterKey(_Character)
+                if key then
+                    ESPQueued[key] = nil
                 end
             end
             task.wait(ESPQueueDelay)
@@ -2327,12 +2347,17 @@ end
 
 local function CharacterAdded(_Character)
     if typeof(_Character) == "Instance" then
-        if Tracking[_Character.UniqueId] then
+        local key = GetCharacterKey(_Character)
+        if not key then
+            return
+        end
+        if Tracking[key] or ESPQueued[key] then
             return
         end
         if MaxTrackedESP and GetTrackedCount() + #ESPQueue >= MaxTrackedESP then
             return
         end
+        ESPQueued[key] = true
         table.insert(ESPQueue, _Character)
         ProcessESPQueue()
     end
@@ -2340,6 +2365,10 @@ end
 
 local function CharacterRemoving(_Character)
     if typeof(_Character) == "Instance" then
+        local key = GetCharacterKey(_Character)
+        if key then
+            ESPQueued[key] = nil
+        end
         for Key, Tracked in next, Tracking do
             if Tracked and Tracked.Character == _Character then
                 TrackingHandler:DisconnectTracking(Key)
