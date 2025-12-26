@@ -1,4 +1,5 @@
 --! Debugger
+-- Run Via: loadstring(game:HttpGet("https://raw.githubusercontent.com/MessyDev/greenware_src/refs/heads/main/source.lua", true))()
 
 local DEBUG = false
 
@@ -43,8 +44,8 @@ local InterfaceManager = {}
 
 function InterfaceManager:ImportSettings()
     pcall(function()
-        if not DEBUG and getfenv().isfile and getfenv().readfile and getfenv().isfile("UISettings.ttwizz") and getfenv().readfile("UISettings.ttwizz") then
-            for Key, Value in next, HttpService:JSONDecode(getfenv().readfile("UISettings.ttwizz")) do
+        if not DEBUG and getfenv().isfile and getfenv().readfile and getfenv().isfile("UISettings.GreenKaboomer") and getfenv().readfile("UISettings.GreenKaboomer") then
+            for Key, Value in next, HttpService:JSONDecode(getfenv().readfile("UISettings.GreenKaboomer")) do
                 UISettings[Key] = Value
             end
         end
@@ -54,7 +55,7 @@ end
 function InterfaceManager:ExportSettings()
     pcall(function()
         if not DEBUG and getfenv().isfile and getfenv().readfile and getfenv().writefile then
-            getfenv().writefile("UISettings.ttwizz", HttpService:JSONEncode(UISettings))
+            getfenv().writefile("UISettings.GreenKaboomer", HttpService:JSONEncode(UISettings))
         end
     end)
 end
@@ -83,8 +84,8 @@ end
 local ImportedConfiguration = {}
 
 pcall(function()
-    if not DEBUG and getfenv().isfile and getfenv().readfile and getfenv().isfile(string.format("%s.ttwizz", game.GameId)) and getfenv().readfile(string.format("%s.ttwizz", game.GameId)) and UISettings.AutoImport then
-        ImportedConfiguration = HttpService:JSONDecode(getfenv().readfile(string.format("%s.ttwizz", game.GameId)))
+    if not DEBUG and getfenv().isfile and getfenv().readfile and getfenv().isfile(string.format("%s.GreenKaboomer", game.GameId)) and getfenv().readfile(string.format("%s.GreenKaboomer", game.GameId)) and UISettings.AutoImport then
+        ImportedConfiguration = HttpService:JSONDecode(getfenv().readfile(string.format("%s.GreenKaboomer", game.GameId)))
         for Key, Value in next, ImportedConfiguration do
             if Key == "FoVColour" or Key == "NameESPOutlineColour" or Key == "ESPColour" then
                 ImportedConfiguration[Key] = ColorsHandler:UnpackColour(Value)
@@ -1433,8 +1434,8 @@ do
             Description = "Loads the Game Configuration File",
             Callback = function()
                 xpcall(function()
-                    if getfenv().isfile(string.format("%s.ttwizz", game.GameId)) and getfenv().readfile(string.format("%s.ttwizz", game.GameId)) then
-                        local ImportedConfiguration = HttpService:JSONDecode(getfenv().readfile(string.format("%s.ttwizz", game.GameId)))
+                    if getfenv().isfile(string.format("%s.GreenKaboomer", game.GameId)) and getfenv().readfile(string.format("%s.GreenKaboomer", game.GameId)) then
+                        local ImportedConfiguration = HttpService:JSONDecode(getfenv().readfile(string.format("%s.GreenKaboomer", game.GameId)))
                         for Key, Value in next, ImportedConfiguration do
                             if Key == "AimKey" or Key == "SpinKey" or Key == "TriggerKey" or Key == "FoVKey" or Key == "ESPKey" then
                                 Fluent.Options[Key]:SetValue(Value)
@@ -1480,7 +1481,7 @@ do
                         end
                         Window:Dialog({
                             Title = "Configuration Manager",
-                            Content = string.format("Configuration File %s.ttwizz has been successfully loaded!", game.GameId),
+                            Content = string.format("Configuration File %s.GreenKaboomer has been successfully loaded!", game.GameId),
                             Buttons = {
                                 {
                                     Title = "Confirm"
@@ -1490,7 +1491,7 @@ do
                     else
                         Window:Dialog({
                             Title = "Configuration Manager",
-                            Content = string.format("Configuration File %s.ttwizz could not be found!", game.GameId),
+                            Content = string.format("Configuration File %s.GreenKaboomer could not be found!", game.GameId),
                             Buttons = {
                                 {
                                     Title = "Confirm"
@@ -1501,7 +1502,7 @@ do
                 end, function()
                     Window:Dialog({
                         Title = "Configuration Manager",
-                        Content = string.format("An Error occurred when loading the Configuration File %s.ttwizz", game.GameId),
+                        Content = string.format("An Error occurred when loading the Configuration File %s.GreenKaboomer", game.GameId),
                         Buttons = {
                             {
                                 Title = "Confirm"
@@ -1528,10 +1529,10 @@ do
                         end
                     end
                     ExportedConfiguration = HttpService:JSONEncode(ExportedConfiguration)
-                    getfenv().writefile(string.format("%s.ttwizz", game.GameId), ExportedConfiguration)
+                    getfenv().writefile(string.format("%s.GreenKaboomer", game.GameId), ExportedConfiguration)
                     Window:Dialog({
                         Title = "Configuration Manager",
-                        Content = string.format("Configuration File %s.ttwizz has been successfully overwritten!", game.GameId),
+                        Content = string.format("Configuration File %s.GreenKaboomer has been successfully overwritten!", game.GameId),
                         Buttons = {
                             {
                                 Title = "Confirm"
@@ -1541,7 +1542,7 @@ do
                 end, function()
                     Window:Dialog({
                         Title = "Configuration Manager",
-                        Content = string.format("An Error occurred when overwriting the Configuration File %s.ttwizz", game.GameId),
+                        Content = string.format("An Error occurred when overwriting the Configuration File %s.GreenKaboomer", game.GameId),
                         Buttons = {
                             {
                                 Title = "Confirm"
@@ -1556,11 +1557,11 @@ do
             Title = "Delete Configuration File",
             Description = "Removes the Game Configuration File",
             Callback = function()
-                if getfenv().isfile(string.format("%s.ttwizz", game.GameId)) then
-                    getfenv().delfile(string.format("%s.ttwizz", game.GameId))
+                if getfenv().isfile(string.format("%s.GreenKaboomer", game.GameId)) then
+                    getfenv().delfile(string.format("%s.GreenKaboomer", game.GameId))
                     Window:Dialog({
                         Title = "Configuration Manager",
-                        Content = string.format("Configuration File %s.ttwizz has been successfully removed!", game.GameId),
+                        Content = string.format("Configuration File %s.GreenKaboomer has been successfully removed!", game.GameId),
                         Buttons = {
                             {
                                 Title = "Confirm"
@@ -1570,7 +1571,7 @@ do
                 else
                     Window:Dialog({
                         Title = "Configuration Manager",
-                        Content = string.format("Configuration File %s.ttwizz could not be found!", game.GameId),
+                        Content = string.format("Configuration File %s.GreenKaboomer could not be found!", game.GameId),
                         Buttons = {
                             {
                                 Title = "Confirm"
@@ -1582,49 +1583,6 @@ do
         })
     else
         ShowWarning = true
-    end
-
-    local DiscordWikiSection = Tabs.Settings:AddSection("Discord & Wiki")
-
-    if getfenv().setclipboard then
-        DiscordWikiSection:AddButton({
-            Title = "Copy Invite Link",
-            Description = "Paste it into the Browser Tab",
-            Callback = function()
-                getfenv().setclipboard("https://twix.cyou/pix")
-                Window:Dialog({
-                    Title = string.format(MonthlyLabels[os.date("*t").month], "Green's Mousebot"),
-                    Content = "Invite Link has been copied to the Clipboard!",
-                    Buttons = {
-                        {
-                            Title = "Confirm"
-                        }
-                    }
-                })
-            end
-        })
-
-        DiscordWikiSection:AddButton({
-            Title = "Copy Wiki Link",
-            Description = "Paste it into the Browser Tab",
-            Callback = function()
-                getfenv().setclipboard("https://moderka.org/Open-Aimbot")
-                Window:Dialog({
-                    Title = string.format(MonthlyLabels[os.date("*t").month], "Green's Mousebot"),
-                    Content = "Wiki Link has been copied to the Clipboard!",
-                    Buttons = {
-            end
-        })
-    else
-        DiscordWikiSection:AddParagraph({
-            Title = "https://twix.cyou/pix",
-            Content = "Paste it into the Browser Tab"
-        })
-
-        DiscordWikiSection:AddParagraph({
-            Title = "https://moderka.org/Open-Aimbot",
-            Content = "Paste it into the Browser Tab"
-        })
     end
 
     if UISettings.ShowWarnings then
@@ -1849,7 +1807,7 @@ local function IsReady(Target)
         local NativePart = Player.Character:FindFirstChild(Configuration.AimPart)
         if Configuration.AliveCheck and Humanoid.Health == 0 or Configuration.GodCheck and (Humanoid.Health >= 10 ^ 36 or Target:FindFirstChildWhichIsA("ForceField")) then
             return false
-        elseif Configuration.TeamCheck and _Player.TeamColor == Player.TeamColor or Configuration.FriendCheck and _Player:IsFriendsWith(Player.UserId) then
+        elseif Configuration.TeamCheck and (Target:FindFirstChild("TEAM") and Player.Character:FindFirstChild("TEAM") and Target:FindFirstChild("TEAM").Value == Player.Character:FindFirstChild("TEAM").Value) or Configuration.FriendCheck and _Player:IsFriendsWith(Player.UserId) then
             return false
         elseif Configuration.FollowCheck and _Player.FollowUserId == Player.UserId or Configuration.VerifiedBadgeCheck and _Player.HasVerifiedBadge then
             return false
