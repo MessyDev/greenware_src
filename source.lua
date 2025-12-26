@@ -2131,11 +2131,7 @@ function ESPLibrary:Initialize(_Character)
         if Configuration.SmartESP then
             IsCharacterReady = IsReady(self.Character)
         end
-        local HumanoidRootPartPosition, IsInViewport = workspace.CurrentCamera:WorldToViewportPoint(HumanoidRootPart.Position)
-        local HeadPosition = workspace.CurrentCamera:WorldToViewportPoint(Head.Position)
-        local TopPosition = workspace.CurrentCamera:WorldToViewportPoint(Head.Position + Vector3.new(0, 0.5, 0))
-        local BottomPosition = workspace.CurrentCamera:WorldToViewportPoint(HumanoidRootPart.Position - Vector3.new(0, 3, 0))
-        local ShowESP = ShowingESP and IsCharacterReady and IsInViewport
+        local ShowESP = ShowingESP and IsCharacterReady
         self.Billboard.Enabled = ShowESP and (Configuration.NameESP or Configuration.HealthESP or Configuration.MagnitudeESP)
         self.Highlight.Enabled = ShowESP and Configuration.ESPBox
         self.Billboard.Adornee = HumanoidRootPart
@@ -2178,11 +2174,7 @@ function ESPLibrary:Visualize()
         if Configuration.SmartESP then
             IsCharacterReady = IsReady(self.Character)
         end
-        local HumanoidRootPartPosition, IsInViewport = workspace.CurrentCamera:WorldToViewportPoint(HumanoidRootPart.Position)
-        local HeadPosition = workspace.CurrentCamera:WorldToViewportPoint(Head.Position)
-        local TopPosition = workspace.CurrentCamera:WorldToViewportPoint(Head.Position + Vector3.new(0, 0.5, 0))
-        local BottomPosition = workspace.CurrentCamera:WorldToViewportPoint(HumanoidRootPart.Position - Vector3.new(0, 3, 0))
-        local ShowESP = ShowingESP and IsCharacterReady and IsInViewport
+        local ShowESP = ShowingESP and IsCharacterReady
         self.Billboard.Enabled = ShowESP and (Configuration.NameESP or Configuration.HealthESP or Configuration.MagnitudeESP)
         self.Highlight.Enabled = ShowESP and Configuration.ESPBox
         self.Billboard.Adornee = HumanoidRootPart
@@ -2238,9 +2230,11 @@ local TrackingHandler = {}
 local Tracking = {}
 local Connections = {}
 local MaxTrackedESP = 200
-local ESPUpdateInterval = 0.05
+local ESPUpdateInterval = 0.12
 local LastESPUpdate = 0
-local ESPQueueDelay = 0.02
+local ESPQueueDelay = 0.04
+local ESPUpdateBatch = 25
+local LastESPKey = nil
 local ESPQueue = {}
 local ESPQueueRunning = false
 local function GetTrackedCount()
@@ -2280,9 +2274,23 @@ function TrackingHandler:VisualizeESP()
         return
     end
     LastESPUpdate = os.clock()
-    for _, Tracked in next, Tracking do
-        Tracked:Visualize()
+    local steps = 0
+    local key = LastESPKey
+    while steps < ESPUpdateBatch do
+        key = next(Tracking, key)
+        if not key then
+            key = next(Tracking)
+        end
+        if not key then
+            break
+        end
+        local tracked = Tracking[key]
+        if tracked then
+            tracked:Visualize()
+        end
+        steps = steps + 1
     end
+    LastESPKey = key
 end
 
 function TrackingHandler:DisconnectTracking(Key)
@@ -2422,7 +2430,7 @@ local AimbotLoop; AimbotLoop = RunService[UISettings.RenderingMode]:Connect(func
             local Closest = math.huge
             if not IsReady(OldTarget) then
                 if OldTarget and not Configuration.OffAimbotAfterKill or not OldTarget then
-                    if Units and os.clock() - LastTargetScan >= 0.05 then
+                    if Units and os.clock() - LastTargetScan >= 0.1 then
                         LastTargetScan = os.clock()
                         for _, Unit in next, Units:GetChildren() do
                             if Unit ~= Player.Character then
