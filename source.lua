@@ -238,6 +238,7 @@ local Clock = os.clock()
 local Aiming = false
 local Target = nil
 local Tween = nil
+local LastTargetScan = 0
 local MouseSensitivity = UserInputService.MouseDeltaSensitivity
 
 local Spinning = false
@@ -2265,6 +2266,8 @@ local TrackingHandler = {}
 local Tracking = {}
 local Connections = {}
 local MaxTrackedESP = 200
+local ESPUpdateInterval = 0.05
+local LastESPUpdate = 0
 local function GetTrackedCount()
     local Count = 0
     for _, _ in next, Tracking do
@@ -2277,6 +2280,10 @@ function TrackingHandler:VisualizeESP()
     if not ShowingESP and not Configuration.SmartESP then
         return
     end
+    if os.clock() - LastESPUpdate < ESPUpdateInterval then
+        return
+    end
+    LastESPUpdate = os.clock()
     for _, Tracked in next, Tracking do
         Tracked:Visualize()
     end
@@ -2421,7 +2428,8 @@ local AimbotLoop; AimbotLoop = RunService[UISettings.RenderingMode]:Connect(func
             local Closest = math.huge
             if not IsReady(OldTarget) then
                 if OldTarget and not Configuration.OffAimbotAfterKill or not OldTarget then
-                    if Units then
+                    if Units and os.clock() - LastTargetScan >= 0.05 then
+                        LastTargetScan = os.clock()
                         for _, Unit in next, Units:GetChildren() do
                             if Unit ~= Player.Character then
                                 local IsCharacterReady, Character, PartViewportPosition = IsReady(Unit)
