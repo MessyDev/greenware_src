@@ -24,6 +24,7 @@ local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
+local Units = workspace:FindFirstChild("Units")
 
 --! Interface Manager
 
@@ -1056,11 +1057,6 @@ do
     if DEBUG or getfenv().Drawing and getfenv().Drawing.new then
         Tabs.Visuals = Window:AddTab({ Title = "Visuals", Icon = "box" })
 
-    Tabs.Visuals:AddParagraph({
-        Title = string.format("%s 🔥FREE🔥", string.format(MonthlyLabels[os.date("*t").month], "Green's Mousebot")),
-        Content = "✨Universal Aim Assist Framework✨\nhttps://github.com/MessyDev/GreenAbWare"
-    })
-
         local FoVSection = Tabs.Visuals:AddSection("FoV")
 
         local FoVToggle = FoVSection:AddToggle("FoV", { Title = "FoV", Description = "Graphically Displays the FoV Radius", Default = Configuration.FoV })
@@ -1626,16 +1622,13 @@ end
 local function Notify(Message)
     if Fluent and typeof(Message) == "string" then
         Fluent:Notify({
-            Title = string.format("%s 🔥FREE🔥", string.format(MonthlyLabels[os.date("*t").month], "Green's Mousebot")),
+            Title = "Green's Mousebot",
             Content = Message,
-            SubContent = "By @ttwiz_z",
+            SubContent = "By Green Kaboomer",
             Duration = 1.5
         })
     end
 end
-
-Notify("✨Upgrade to unlock all Options✨")
-
 
 --! Fields Handler
 
@@ -2276,23 +2269,27 @@ end
 
 local function CharacterAdded(_Character)
     if typeof(_Character) == "Instance" then
-        local _Player = Players:GetPlayerFromCharacter(_Character)
-        Tracking[_Player.UserId] = ESPLibrary:Initialize(_Character)
+        Tracking[_Character.UniqueId] = ESPLibrary:Initialize(_Character)
     end
 end
 
 local function CharacterRemoving(_Character)
     if typeof(_Character) == "Instance" then
         for Key, Tracked in next, Tracking do
-            if Tracked.Character == _Character then
+            if Tracked == _Character then
                 TrackingHandler:DisconnectTracking(Key)
             end
         end
     end
 end
 
-function TrackingHandler:InitializePlayers()
+function TrackingHandler:InitializeUnits()
     if not DEBUG and getfenv().Drawing and getfenv().Drawing.new then
+        for _, Unit in next, Units:GetChildren() do
+            if Unit ~= Player.Character then
+                CharacterAdded(Unit)
+            end
+        end
         for _, _Player in next, Players:GetPlayers() do
             if _Player ~= Player then
                 CharacterAdded(_Player.Character)
@@ -2302,8 +2299,7 @@ function TrackingHandler:InitializePlayers()
     end
 end
 
-TrackingHandler:InitializePlayers()
-
+TrackingHandler:InitializeUnits()
 
 --! Player Events Handler
 
@@ -2311,7 +2307,7 @@ local OnTeleport; OnTeleport = Player.OnTeleport:Connect(function()
     if DEBUG or not Fluent or not getfenv().queue_on_teleport then
         OnTeleport:Disconnect()
     else
-        getfenv().queue_on_teleport("getfenv().loadstring(game:HttpGet(\"https://raw.githubusercontent.com/MessyDev/GreenAbWare/master/source.lua\", true))()")
+        getfenv().queue_on_teleport("getfenv().loadstring(game:HttpGet(\"https://raw.githubusercontent.com/MessyDev/greenware_src/refs/heads/main/source.lua\", true))()")
         OnTeleport:Disconnect()
     end
 end)
@@ -2339,6 +2335,13 @@ local PlayerRemoving; PlayerRemoving = Players.PlayerRemoving:Connect(function(_
     end
 end)
 
+Units.ChildAdded:Connect(function(Unit)
+    CharacterAdded(Unit)
+end)
+
+Units.ChildRemoved:Connect(function(Unit)
+    CharacterRemoving(Unit)
+end)
 
 --! Aimbot Handler
 
