@@ -2136,7 +2136,7 @@ function ESPLibrary:Initialize(_Character)
         self.Highlight.Enabled = ShowESP and Configuration.ESPBox
         self.Billboard.Adornee = HumanoidRootPart
         local displayName = self:GetDisplayName()
-        self.NameLabel.Text = Aiming and IsReady(Target) and self.Character == Target and string.format("🎯@%s🎯", displayName) or string.format("@%s", displayName)
+        self.NameLabel.Text = Aiming and Target == self.Character and string.format("🎯@%s🎯", displayName) or string.format("@%s", displayName)
         self.NameLabel.Visible = Configuration.NameESP
         self.HealthLabel.Text = string.format("[%s%%]", MathHandler:Abbreviate(Humanoid.Health))
         self.HealthLabel.Visible = Configuration.HealthESP
@@ -2179,7 +2179,7 @@ function ESPLibrary:Visualize()
         self.Highlight.Enabled = ShowESP and Configuration.ESPBox
         self.Billboard.Adornee = HumanoidRootPart
         local displayName = self:GetDisplayName()
-        self.NameLabel.Text = Aiming and IsReady(Target) and self.Character == Target and string.format("🎯@%s🎯", displayName) or string.format("@%s", displayName)
+        self.NameLabel.Text = Aiming and Target == self.Character and string.format("🎯@%s🎯", displayName) or string.format("@%s", displayName)
         self.NameLabel.Visible = Configuration.NameESP
         self.HealthLabel.Text = string.format("[%s%%]", MathHandler:Abbreviate(Humanoid.Health))
         self.HealthLabel.Visible = Configuration.HealthESP
@@ -2230,10 +2230,10 @@ local TrackingHandler = {}
 local Tracking = {}
 local Connections = {}
 local MaxTrackedESP = 200
-local ESPUpdateInterval = 0.12
+local ESPUpdateInterval = 0.2
 local LastESPUpdate = 0
-local ESPQueueDelay = 0.04
-local ESPUpdateBatch = 25
+local ESPQueueDelay = 0.06
+local ESPUpdateBatch = 15
 local LastESPKey = nil
 local ESPQueue = {}
 local ESPQueueRunning = false
@@ -2430,7 +2430,7 @@ local AimbotLoop; AimbotLoop = RunService[UISettings.RenderingMode]:Connect(func
             local Closest = math.huge
             if not IsReady(OldTarget) then
                 if OldTarget and not Configuration.OffAimbotAfterKill or not OldTarget then
-                    if Units and os.clock() - LastTargetScan >= 0.1 then
+                    if Units and os.clock() - LastTargetScan >= 0.2 then
                         LastTargetScan = os.clock()
                         for _, Unit in next, Units:GetChildren() do
                             if Unit ~= Player.Character then
