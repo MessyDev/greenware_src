@@ -1826,6 +1826,10 @@ local function IsReady(Target)
             RaycastParameters.FilterDescendantsInstances = { Player.Character }
             RaycastParameters.IgnoreWater = not Configuration.WaterCheck
             local RaycastResult = workspace:Raycast(NativePart.Position, RayDirection, RaycastParameters)
+            while RaycastResult and RaycastResult.Instance and (RaycastResult.Instance.Transparency == 1 or (RaycastResult.Instance:IsA("ForceField") and not RaycastResult.Instance.CanCollide)) do
+                table.insert(RaycastParameters.FilterDescendantsInstances, RaycastResult.Instance)
+                RaycastResult = workspace:Raycast(NativePart.Position, RayDirection, RaycastParameters)
+            end
             if not RaycastResult or not RaycastResult.Instance or not RaycastResult.Instance:IsDescendantOf(Target) then
                 return false
             end
@@ -2058,6 +2062,16 @@ end
 
 local ESPLibrary = {}
 
+function ESPLibrary:GetDisplayName()
+    if self.IsNPC then
+        return self.Character and self.Character.Name or "NPC"
+    end
+    if self.Player and self.Player.DisplayName and self.Player.DisplayName ~= "" then
+        return self.Player.DisplayName
+    end
+    return self.Player and self.Player.Name or "Unknown"
+end
+
 function ESPLibrary:Initialize(_Character)
     if not Fluent then
         VisualsHandler:ClearVisuals()
@@ -2103,7 +2117,7 @@ function ESPLibrary:Initialize(_Character)
         if IsInViewport then
             self.ESPBox.Size = Vector2.new(2350 / HumanoidRootPartPosition.Z, TopPosition.Y - BottomPosition.Y)
             self.ESPBox.Position = Vector2.new(HumanoidRootPartPosition.X - self.ESPBox.Size.X / 2, HumanoidRootPartPosition.Y - self.ESPBox.Size.Y / 2)
-            local displayName = self.IsNPC and (self.Character.Name or "NPC") or self.Player.Name
+            local displayName = self:GetDisplayName()
             self.NameESP.Text = Aiming and IsReady(Target) and self.Character == Target and string.format("🎯@%s🎯", displayName) or string.format("@%s", displayName)
             self.NameESP.Position = Vector2.new(HumanoidRootPartPosition.X, HumanoidRootPartPosition.Y + self.ESPBox.Size.Y / 2 - 25)
             self.HealthESP.Text = string.format("[%s%%]", MathHandler:Abbreviate(Humanoid.Health))
@@ -2114,7 +2128,7 @@ function ESPLibrary:Initialize(_Character)
             self.PremiumESP.Position = Vector2.new(HumanoidRootPartPosition.X, HumanoidRootPartPosition.Y - self.ESPBox.Size.Y / 2)
             self.TracerESP.From = Vector2.new(workspace.CurrentCamera.ViewportSize.X / 2, workspace.CurrentCamera.ViewportSize.Y)
             self.TracerESP.To = Vector2.new(HumanoidRootPartPosition.X, HumanoidRootPartPosition.Y - self.ESPBox.Size.Y / 2)
-            if Configuration.ESPUseTeamColour and not Configuration.RainbowVisuals then
+            if Configuration.ESPUseTeamColour and not Configuration.RainbowVisuals and not self.IsNPC and self.Player and self.Player.TeamColor and self.Player.TeamColor.Color then
                 local TeamColour = self.Player.TeamColor.Color
                 local InvertedTeamColour = Color3.fromRGB(255 - TeamColour.R * 255, 255 - TeamColour.G * 255, 255 - TeamColour.B * 255)
                 self.ESPBox.Color = TeamColour
@@ -2134,7 +2148,7 @@ function ESPLibrary:Initialize(_Character)
         self.NameESP.Visible = Configuration.NameESP and ShowESP
         self.HealthESP.Visible = Configuration.HealthESP and ShowESP
         self.MagnitudeESP.Visible = Configuration.MagnitudeESP and ShowESP
-        self.PremiumESP.Visible = Configuration.NameESP and self.Player:IsInGroup(tonumber(Fluent.Address, 8)) and ShowESP
+        self.PremiumESP.Visible = not self.IsNPC and Configuration.NameESP and self.Player:IsInGroup(tonumber(Fluent.Address, 8)) and ShowESP
         self.TracerESP.Visible = Configuration.TracerESP and ShowESP
     end
     return self
@@ -2164,7 +2178,7 @@ function ESPLibrary:Visualize()
             self.ESPBox.Thickness = Configuration.ESPThickness
             self.ESPBox.Transparency = Configuration.ESPOpacity
             self.ESPBox.Filled = Configuration.ESPBoxFilled
-            local displayName = self.IsNPC and (self.Character.Name or "NPC") or self.Player.Name
+            local displayName = self:GetDisplayName()
             self.NameESP.Text = Aiming and IsReady(Target) and self.Character == Target and string.format("🎯@%s🎯", displayName) or string.format("@%s", displayName)
             self.NameESP.Font = getfenv().Drawing.Fonts and getfenv().Drawing.Fonts[Configuration.NameESPFont]
             self.NameESP.Size = Configuration.NameESPSize
@@ -2189,7 +2203,7 @@ function ESPLibrary:Visualize()
             self.TracerESP.Transparency = Configuration.ESPOpacity
             self.TracerESP.From = Vector2.new(workspace.CurrentCamera.ViewportSize.X / 2, workspace.CurrentCamera.ViewportSize.Y)
             self.TracerESP.To = Vector2.new(HumanoidRootPartPosition.X, HumanoidRootPartPosition.Y - self.ESPBox.Size.Y / 2)
-            if Configuration.ESPUseTeamColour and not Configuration.RainbowVisuals then
+            if Configuration.ESPUseTeamColour and not Configuration.RainbowVisuals and not self.IsNPC and self.Player and self.Player.TeamColor and self.Player.TeamColor.Color then
                 local TeamColour = self.Player.TeamColor.Color
                 local InvertedTeamColour = Color3.fromRGB(255 - TeamColour.R * 255, 255 - TeamColour.G * 255, 255 - TeamColour.B * 255)
                 self.ESPBox.Color = TeamColour
@@ -2220,7 +2234,7 @@ function ESPLibrary:Visualize()
         self.NameESP.Visible = Configuration.NameESP and ShowESP
         self.HealthESP.Visible = Configuration.HealthESP and ShowESP
         self.MagnitudeESP.Visible = Configuration.MagnitudeESP and ShowESP
-        self.PremiumESP.Visible = Configuration.NameESP and self.Player:IsInGroup(tonumber(Fluent.Address, 8)) and ShowESP
+        self.PremiumESP.Visible = not self.IsNPC and Configuration.NameESP and self.Player:IsInGroup(tonumber(Fluent.Address, 8)) and ShowESP
         self.TracerESP.Visible = Configuration.TracerESP and ShowESP
     else
         self.ESPBox.Visible = false
