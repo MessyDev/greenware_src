@@ -1994,6 +1994,23 @@ function VisualsHandler:Visualize(Object)
     return nil
 end
 
+local function IsESPReady(Target)
+    if not Target then
+        return false
+    end
+    local Humanoid = Target:FindFirstChildWhichIsA("Humanoid")
+    if not Humanoid then
+        return false
+    end
+    if Configuration.AliveCheck and Humanoid.Health == 0 then
+        return false
+    end
+    if Configuration.GodCheck and (Humanoid.Health >= 10 ^ 36 or Target:FindFirstChildWhichIsA("ForceField")) then
+        return false
+    end
+    return true
+end
+
 local Visuals = { FoV = VisualsHandler:Visualize("FoV") }
 
 function VisualsHandler:ClearVisual(Visual, Key)
@@ -2078,6 +2095,7 @@ function ESPLibrary:Initialize(_Character)
     self.Highlight = Instance.new("Highlight")
     self.Highlight.Name = "GreenwareHighlight"
     self.Highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    self.Highlight.Adornee = self.Character
     self.Highlight.Parent = self.Character
     self.Billboard = Instance.new("BillboardGui")
     self.Billboard.Name = "GreenwareBillboard"
@@ -2114,11 +2132,12 @@ function ESPLibrary:Initialize(_Character)
     if Head and Head:IsA("BasePart") and HumanoidRootPart and HumanoidRootPart:IsA("BasePart") and Humanoid then
         local IsCharacterReady = true
         if Configuration.SmartESP then
-            IsCharacterReady = IsReady(self.Character, true)
+            IsCharacterReady = IsESPReady(self.Character)
         end
         local ShowESP = ShowingESP and IsCharacterReady
         self.Billboard.Enabled = ShowESP and (Configuration.NameESP or Configuration.HealthESP or Configuration.MagnitudeESP)
         self.Highlight.Enabled = ShowESP and Configuration.ESPBox
+        self.Highlight.Adornee = self.Character
         self.Billboard.Adornee = HumanoidRootPart
         local displayName = self:GetDisplayName()
         self.NameLabel.Text = Aiming and Target == self.Character and string.format("🎯@%s🎯", displayName) or string.format("@%s", displayName)
@@ -2160,11 +2179,12 @@ function ESPLibrary:Visualize()
     if Head and Head:IsA("BasePart") and HumanoidRootPart and HumanoidRootPart:IsA("BasePart") and Humanoid then
         local IsCharacterReady = true
         if Configuration.SmartESP then
-            IsCharacterReady = IsReady(self.Character, true)
+            IsCharacterReady = IsESPReady(self.Character)
         end
         local ShowESP = ShowingESP and IsCharacterReady
         self.Billboard.Enabled = ShowESP and (Configuration.NameESP or Configuration.HealthESP or Configuration.MagnitudeESP)
         self.Highlight.Enabled = ShowESP and Configuration.ESPBox
+        self.Highlight.Adornee = self.Character
         self.Billboard.Adornee = HumanoidRootPart
         local displayName = self:GetDisplayName()
         self.NameLabel.Text = Aiming and Target == self.Character and string.format("🎯@%s🎯", displayName) or string.format("@%s", displayName)
@@ -2308,7 +2328,11 @@ function TrackingHandler:VisualizeESP()
         end
         local tracked = Tracking[key]
         if tracked then
-            tracked:Visualize()
+            if not tracked.Character or not tracked.Character.Parent then
+                TrackingHandler:DisconnectTracking(key)
+            else
+                tracked:Visualize()
+            end
         end
         steps = steps + 1
     end
