@@ -1827,8 +1827,22 @@ local function IsReady(Target, SkipWallCheck)
             RaycastParameters.FilterDescendantsInstances = { Player.Character }
             RaycastParameters.IgnoreWater = not Configuration.WaterCheck
             local RaycastResult = workspace:Raycast(NativePart.Position, RayDirection, RaycastParameters)
-            while RaycastResult and RaycastResult.Instance and (RaycastResult.Instance.Transparency == 1 or (RaycastResult.Instance:IsA("ForceField") and not RaycastResult.Instance.CanCollide)) do
-                table.insert(RaycastParameters.FilterDescendantsInstances, RaycastResult.Instance)
+            while RaycastResult and RaycastResult.Instance do
+                local instance = RaycastResult.Instance
+                local skip = false
+                if instance:IsA("ForceField") then
+                    skip = true
+                elseif instance:IsA("BasePart") then
+                    if instance.Transparency == 1 then
+                        skip = true
+                    elseif not instance.CanCollide and instance:FindFirstChildOfClass("ForceField") then
+                        skip = true
+                    end
+                end
+                if not skip then
+                    break
+                end
+                table.insert(RaycastParameters.FilterDescendantsInstances, instance)
                 RaycastResult = workspace:Raycast(NativePart.Position, RayDirection, RaycastParameters)
             end
             if not RaycastResult or not RaycastResult.Instance or not RaycastResult.Instance:IsDescendantOf(Target) then
@@ -2367,18 +2381,16 @@ local function CharacterRemoving(_Character)
 end
 
 function TrackingHandler:InitializeUnits()
-    if not DEBUG and getfenv().Drawing and getfenv().Drawing.new then
-        if Units then
-            for _, Unit in next, Units:GetChildren() do
-                if Unit ~= Player.Character then
-                    CharacterAdded(Unit)
-                end
+    if Units then
+        for _, Unit in next, Units:GetChildren() do
+            if Unit ~= Player.Character then
+                CharacterAdded(Unit)
             end
-            Connections.Units = {
-                Units.ChildAdded:Connect(CharacterAdded),
-                Units.ChildRemoved:Connect(CharacterRemoving)
-            }
         end
+        Connections.Units = {
+            Units.ChildAdded:Connect(CharacterAdded),
+            Units.ChildRemoved:Connect(CharacterRemoving)
+        }
     end
 end
 
@@ -2441,8 +2453,8 @@ local AimbotLoop; AimbotLoop = RunService[UISettings.RenderingMode]:Connect(func
         if not DEBUG and getfenv().Drawing and getfenv().Drawing.new then
             VisualsHandler:VisualizeFoV()
             VisualsHandler:RainbowVisuals()
-            TrackingHandler:VisualizeESP()
         end
+        TrackingHandler:VisualizeESP()
         if Aiming then
             local OldTarget = Target
             local Closest = math.huge
