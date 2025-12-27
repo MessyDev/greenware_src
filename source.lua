@@ -239,6 +239,10 @@ local Aiming = false
 local Target = nil
 local Tween = nil
 local LastTargetScan = 0
+local CachedTarget = nil
+local CachedTargetData = nil
+local CachedTargetTime = 0
+local CachedTargetInterval = 0.05
 local MouseSensitivity = UserInputService.MouseDeltaSensitivity
 
 local Spinning = false
@@ -1902,17 +1906,18 @@ end
 do
     if not DEBUG and getfenv().hookmetamethod and getfenv().newcclosure and getfenv().checkcaller and getfenv().getnamecallmethod then
         local OldIndex; OldIndex = getfenv().hookmetamethod(game, "__index", getfenv().newcclosure(function(self, Index)
-            if Fluent and not getfenv().checkcaller() and Configuration.AimMode == "Silent" and table.find(Configuration.SilentAimMethods, "Mouse.Hit / Mouse.Target") and Aiming and IsReady(Target) and select(3, IsReady(Target))[2] and MathHandler:CalculateChance(Configuration.SilentAimChance) and self == Mouse then
+            local TargetData = GetCachedTargetData()
+            if Fluent and not getfenv().checkcaller() and Configuration.AimMode == "Silent" and table.find(Configuration.SilentAimMethods, "Mouse.Hit / Mouse.Target") and Aiming and TargetData and TargetData.PartViewportPosition[2] and MathHandler:CalculateChance(Configuration.SilentAimChance) and self == Mouse then
                 if Index == "Hit" or Index == "hit" then
-                    return select(6, IsReady(Target))
+                    return TargetData.PartCFrame
                 elseif Index == "Target" or Index == "target" then
-                    return select(7, IsReady(Target))
+                    return TargetData.TargetPart
                 elseif Index == "X" or Index == "x" then
-                    return select(3, IsReady(Target))[1].X
+                    return TargetData.PartViewportPosition[1].X
                 elseif Index == "Y" or Index == "y" then
-                    return select(3, IsReady(Target))[1].Y
+                    return TargetData.PartViewportPosition[1].Y
                 elseif Index == "UnitRay" or Index == "unitRay" then
-                    return Ray.new(self.Origin, (select(6, IsReady(Target)) - self.Origin).Unit)
+                    return Ray.new(self.Origin, (TargetData.PartCFrame.Position - self.Origin).Unit)
                 end
             end
             return OldIndex(self, Index)
@@ -1922,20 +1927,21 @@ do
             local Method = getfenv().getnamecallmethod()
             local Arguments = { ... }
             local self = Arguments[1]
-            if Fluent and not getfenv().checkcaller() and Configuration.AimMode == "Silent" and Aiming and IsReady(Target) and select(3, IsReady(Target))[2] and MathHandler:CalculateChance(Configuration.SilentAimChance) then
+            local TargetData = GetCachedTargetData()
+            if Fluent and not getfenv().checkcaller() and Configuration.AimMode == "Silent" and Aiming and TargetData and TargetData.PartViewportPosition[2] and MathHandler:CalculateChance(Configuration.SilentAimChance) then
                 if table.find(Configuration.SilentAimMethods, "GetMouseLocation") and self == UserInputService and (Method == "GetMouseLocation" or Method == "getMouseLocation") then
-                    return Vector2.new(select(3, IsReady(Target))[1].X, select(3, IsReady(Target))[1].Y)
+                    return Vector2.new(TargetData.PartViewportPosition[1].X, TargetData.PartViewportPosition[1].Y)
                 elseif table.find(Configuration.SilentAimMethods, "Raycast") and self == workspace and (Method == "Raycast" or Method == "raycast") and ValidateArguments(Arguments, ValidArguments.Raycast) then
-                    Arguments[3] = MathHandler:CalculateDirection(Arguments[2], select(4, IsReady(Target)), select(5, IsReady(Target)))
+                    Arguments[3] = MathHandler:CalculateDirection(Arguments[2], TargetData.PartWorldPosition, TargetData.Magnitude)
                     return OldNameCall(table.unpack(Arguments))
                 elseif table.find(Configuration.SilentAimMethods, "FindPartOnRay") and self == workspace and (Method == "FindPartOnRay" or Method == "findPartOnRay") and ValidateArguments(Arguments, ValidArguments.FindPartOnRay) then
-                    Arguments[2] = Ray.new(Arguments[2].Origin, MathHandler:CalculateDirection(Arguments[2].Origin, select(4, IsReady(Target)), select(5, IsReady(Target))))
+                    Arguments[2] = Ray.new(Arguments[2].Origin, MathHandler:CalculateDirection(Arguments[2].Origin, TargetData.PartWorldPosition, TargetData.Magnitude))
                     return OldNameCall(table.unpack(Arguments))
                 elseif table.find(Configuration.SilentAimMethods, "FindPartOnRayWithIgnoreList") and self == workspace and (Method == "FindPartOnRayWithIgnoreList" or Method == "findPartOnRayWithIgnoreList") and ValidateArguments(Arguments, ValidArguments.FindPartOnRayWithIgnoreList) then
-                    Arguments[2] = Ray.new(Arguments[2].Origin, MathHandler:CalculateDirection(Arguments[2].Origin, select(4, IsReady(Target)), select(5, IsReady(Target))))
+                    Arguments[2] = Ray.new(Arguments[2].Origin, MathHandler:CalculateDirection(Arguments[2].Origin, TargetData.PartWorldPosition, TargetData.Magnitude))
                     return OldNameCall(table.unpack(Arguments))
                 elseif table.find(Configuration.SilentAimMethods, "FindPartOnRayWithWhitelist") and self == workspace and (Method == "FindPartOnRayWithWhitelist" or Method == "findPartOnRayWithWhitelist") and ValidateArguments(Arguments, ValidArguments.FindPartOnRayWithWhitelist) then
-                    Arguments[2] = Ray.new(Arguments[2].Origin, MathHandler:CalculateDirection(Arguments[2].Origin, select(4, IsReady(Target)), select(5, IsReady(Target))))
+                    Arguments[2] = Ray.new(Arguments[2].Origin, MathHandler:CalculateDirection(Arguments[2].Origin, TargetData.PartWorldPosition, TargetData.Magnitude))
                     return OldNameCall(table.unpack(Arguments))
                 end
             end
@@ -1992,6 +1998,52 @@ function VisualsHandler:Visualize(Object)
         end
     end
     return nil
+end
+
+local function IsESPReady(Target)
+    if not Target then
+        return false
+    end
+    local Humanoid = Target:FindFirstChildWhichIsA("Humanoid")
+    if not Humanoid then
+        return false
+    end
+    if Configuration.AliveCheck and Humanoid.Health == 0 then
+        return false
+    end
+    if Configuration.GodCheck and (Humanoid.Health >= 10 ^ 36 or Target:FindFirstChildWhichIsA("ForceField")) then
+        return false
+    end
+    return true
+end
+
+local function GetCachedTargetData()
+    if Target ~= CachedTarget then
+        CachedTarget = Target
+        CachedTargetData = nil
+        CachedTargetTime = 0
+    end
+    if not CachedTarget then
+        return nil
+    end
+    if os.clock() - CachedTargetTime < CachedTargetInterval then
+        return CachedTargetData
+    end
+    CachedTargetTime = os.clock()
+    local IsTargetReady, Character, PartViewportPosition, PartWorldPosition, Magnitude, PartCFrame, TargetPart = IsReady(CachedTarget)
+    if IsTargetReady then
+        CachedTargetData = {
+            Character = Character,
+            PartViewportPosition = PartViewportPosition,
+            PartWorldPosition = PartWorldPosition,
+            Magnitude = Magnitude,
+            PartCFrame = PartCFrame,
+            TargetPart = TargetPart
+        }
+    else
+        CachedTargetData = nil
+    end
+    return CachedTargetData
 end
 
 local function IsESPReady(Target)
@@ -2503,24 +2555,24 @@ local AimbotLoop; AimbotLoop = RunService[UISettings.RenderingMode]:Connect(func
                     FieldsHandler:ResetAimbotFields()
                 end
             end
-            local IsTargetReady, _, PartViewportPosition, PartWorldPosition = IsReady(Target)
-            if IsTargetReady then
+            local TargetData = GetCachedTargetData()
+            if TargetData then
                 if not DEBUG and getfenv().mousemoverel and IsComputer and Configuration.AimMode == "Mouse" then
-                    if PartViewportPosition[2] then
+                    if TargetData.PartViewportPosition[2] then
                         FieldsHandler:ResetAimbotFields(true, true)
                         local MouseLocation = UserInputService:GetMouseLocation()
                         local Sensitivity = Configuration.UseSensitivity and Configuration.Sensitivity / 5 or 10
-                        getfenv().mousemoverel((PartViewportPosition[1].X - MouseLocation.X) / Sensitivity, (PartViewportPosition[1].Y - MouseLocation.Y) / Sensitivity)
+                        getfenv().mousemoverel((TargetData.PartViewportPosition[1].X - MouseLocation.X) / Sensitivity, (TargetData.PartViewportPosition[1].Y - MouseLocation.Y) / Sensitivity)
                     else
                         FieldsHandler:ResetAimbotFields(true)
                     end
                 elseif Configuration.AimMode == "Camera" then
                     UserInputService.MouseDeltaSensitivity = 0
                     if Configuration.UseSensitivity then
-                        Tween = TweenService:Create(workspace.CurrentCamera, TweenInfo.new(math.clamp(Configuration.Sensitivity, 9, 99) / 100, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), { CFrame = CFrame.new(workspace.CurrentCamera.CFrame.Position, PartWorldPosition) })
+                        Tween = TweenService:Create(workspace.CurrentCamera, TweenInfo.new(math.clamp(Configuration.Sensitivity, 9, 99) / 100, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), { CFrame = CFrame.new(workspace.CurrentCamera.CFrame.Position, TargetData.PartWorldPosition) })
                         Tween:Play()
                     else
-                        workspace.CurrentCamera.CFrame = CFrame.new(workspace.CurrentCamera.CFrame.Position, PartWorldPosition)
+                        workspace.CurrentCamera.CFrame = CFrame.new(workspace.CurrentCamera.CFrame.Position, TargetData.PartWorldPosition)
                     end
                 elseif not DEBUG and getfenv().hookmetamethod and getfenv().newcclosure and getfenv().checkcaller and getfenv().getnamecallmethod and Configuration.AimMode == "Silent" then
                     FieldsHandler:ResetAimbotFields(true, true)
