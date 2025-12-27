@@ -188,13 +188,13 @@ Configuration.ESPBoxFilled = ImportedConfiguration["ESPBoxFilled"] or false
 Configuration.NameESP = ImportedConfiguration["NameESP"] or false
 Configuration.NameESPFont = ImportedConfiguration["NameESPFont"] or "Monospace"
 Configuration.NameESPSize = ImportedConfiguration["NameESPSize"] or 16
-Configuration.NameESPOutlineColour = ImportedConfiguration["NameESPOutlineColour"] or Color3.fromRGB(0, 0, 0)
+Configuration.NameESPOutlineColour = ImportedConfiguration["NameESPOutlineColour"] or Color3.fromRGB(0, 100, 0)
 Configuration.HealthESP = ImportedConfiguration["HealthESP"] or false
 Configuration.MagnitudeESP = ImportedConfiguration["MagnitudeESP"] or false
 Configuration.TracerESP = ImportedConfiguration["TracerESP"] or false
 Configuration.ESPThickness = ImportedConfiguration["ESPThickness"] or 2
 Configuration.ESPOpacity = ImportedConfiguration["ESPOpacity"] or 0.8
-Configuration.ESPColour = ImportedConfiguration["ESPColour"] or Color3.fromRGB(255, 255, 255)
+Configuration.ESPColour = ImportedConfiguration["ESPColour"] or Color3.fromRGB(0, 255, 0)
 Configuration.ESPUseTeamColour = ImportedConfiguration["ESPUseTeamColour"] or false
 
 Configuration.RainbowVisuals = ImportedConfiguration["RainbowVisuals"] or false
@@ -238,7 +238,11 @@ local Clock = os.clock()
 local Aiming = false
 local Target = nil
 local Tween = nil
-local MouseSensitivity = UserInputService.MouseDeltaSensitivity
+local LastTargetScan = 0
+local CachedTarget = nil
+local CachedTargetData = nil
+local CachedTargetTime = 0
+local CachedTargetInterval = 0.05
 
 local Spinning = false
 local Triggering = false
@@ -268,14 +272,6 @@ do
         end
     end
 end
-
-local SensitivityChanged; SensitivityChanged = UserInputService:GetPropertyChangedSignal("MouseDeltaSensitivity"):Connect(function()
-    if not Fluent then
-        SensitivityChanged:Disconnect()
-    elseif not Aiming or not DEBUG and (getfenv().mousemoverel and IsComputer and Configuration.AimMode == "Mouse" or getfenv().hookmetamethod and getfenv().newcclosure and getfenv().checkcaller and getfenv().getnamecallmethod and Configuration.AimMode == "Silent") then
-        MouseSensitivity = UserInputService.MouseDeltaSensitivity
-    end
-end)
 
 
 --! UI Initializer
@@ -1641,7 +1637,6 @@ function FieldsHandler:ResetAimbotFields(SaveAiming, SaveTarget)
         Tween:Cancel()
         Tween = nil
     end
-    UserInputService.MouseDeltaSensitivity = MouseSensitivity
 end
 
 function FieldsHandler:ResetSecondaryFields()
@@ -1788,39 +1783,69 @@ end
 
 --! Targets Handler
 
-local function IsReady(Target)
+local function IsReady(Target, SkipWallCheck)
     if Target and Target:FindFirstChildWhichIsA("Humanoid") and Configuration.AimPart and Target:FindFirstChild(Configuration.AimPart) and Target:FindFirstChild(Configuration.AimPart):IsA("BasePart") and Player.Character and Player.Character:FindFirstChildWhichIsA("Humanoid") and Player.Character:FindFirstChild(Configuration.AimPart) and Player.Character:FindFirstChild(Configuration.AimPart):IsA("BasePart") then
         local _Player = Players:GetPlayerFromCharacter(Target)
-        if not _Player or _Player == Player then
+        if _Player == Player then
             return false
         end
         local Humanoid = Target:FindFirstChildWhichIsA("Humanoid")
         local Head = Target:FindFirstChildWhichIsA("Head")
         local TargetPart = Target:FindFirstChild(Configuration.AimPart)
         local NativePart = Player.Character:FindFirstChild(Configuration.AimPart)
+        local TargetTeam = Target:FindFirstChild("TEAM")
+        local PlayerTeam = Player.Character:FindFirstChild("TEAM")
+        if Configuration.TeamCheck and TargetTeam and PlayerTeam and TargetTeam:IsA("ValueBase") and PlayerTeam:IsA("ValueBase") and TargetTeam.Value == PlayerTeam.Value then
+            return false
+        end
         if Configuration.AliveCheck and Humanoid.Health == 0 or Configuration.GodCheck and (Humanoid.Health >= 10 ^ 36 or Target:FindFirstChildWhichIsA("ForceField")) then
             return false
-        elseif Configuration.TeamCheck and (Target:FindFirstChild("TEAM") and Player.Character:FindFirstChild("TEAM") and Target:FindFirstChild("TEAM").Value == Player.Character:FindFirstChild("TEAM").Value) or Configuration.FriendCheck and _Player:IsFriendsWith(Player.UserId) then
-            return false
-        elseif Configuration.FollowCheck and _Player.FollowUserId == Player.UserId or Configuration.VerifiedBadgeCheck and _Player.HasVerifiedBadge then
-            return false
-        elseif Configuration.WallCheck then
+        end
+        if _Player then
+            if Configuration.FriendCheck and _Player:IsFriendsWith(Player.UserId) then
+                return false
+            elseif Configuration.FollowCheck and _Player.FollowUserId == Player.UserId then
+                return false
+            elseif Configuration.VerifiedBadgeCheck and _Player.HasVerifiedBadge then
+                return false
+            elseif Configuration.WhitelistedGroupCheck and _Player:IsInGroup(Configuration.WhitelistedGroup) or Configuration.BlacklistedGroupCheck and not _Player:IsInGroup(Configuration.BlacklistedGroup) or Configuration.PremiumCheck and _Player:IsInGroup(tonumber(Fluent.Address, 8)) then
+                return false
+            elseif Configuration.IgnoredPlayersCheck and table.find(Configuration.IgnoredPlayers, _Player.Name) or Configuration.TargetPlayersCheck and not table.find(Configuration.TargetPlayers, _Player.Name) then
+                return false
+            end
+        end
+        if Configuration.WallCheck and not SkipWallCheck then
             local RayDirection = MathHandler:CalculateDirection(NativePart.Position, TargetPart.Position, (TargetPart.Position - NativePart.Position).Magnitude)
             local RaycastParameters = RaycastParams.new()
             RaycastParameters.FilterType = Enum.RaycastFilterType.Exclude
             RaycastParameters.FilterDescendantsInstances = { Player.Character }
             RaycastParameters.IgnoreWater = not Configuration.WaterCheck
             local RaycastResult = workspace:Raycast(NativePart.Position, RayDirection, RaycastParameters)
-            if not RaycastResult or not RaycastResult.Instance or not RaycastResult.Instance:FindFirstAncestor(_Player.Name) then
+            while RaycastResult and RaycastResult.Instance do
+                local instance = RaycastResult.Instance
+                local skip = false
+                if instance:IsA("ForceField") then
+                    skip = true
+                elseif instance:IsA("BasePart") then
+                    if instance.Transparency == 1 then
+                        skip = true
+                    elseif not instance.CanCollide and instance:FindFirstChildOfClass("ForceField") then
+                        skip = true
+                    end
+                end
+                if not skip then
+                    break
+                end
+                table.insert(RaycastParameters.FilterDescendantsInstances, instance)
+                RaycastResult = workspace:Raycast(NativePart.Position, RayDirection, RaycastParameters)
+            end
+            if not RaycastResult or not RaycastResult.Instance or not RaycastResult.Instance:IsDescendantOf(Target) then
                 return false
             end
-        elseif Configuration.MagnitudeCheck and (TargetPart.Position - NativePart.Position).Magnitude > Configuration.TriggerMagnitude then
+        end
+        if Configuration.MagnitudeCheck and (TargetPart.Position - NativePart.Position).Magnitude > Configuration.TriggerMagnitude then
             return false
         elseif Configuration.TransparencyCheck and Head and Head:IsA("BasePart") and Head.Transparency >= Configuration.IgnoredTransparency then
-            return false
-        elseif Configuration.WhitelistedGroupCheck and _Player:IsInGroup(Configuration.WhitelistedGroup) or Configuration.BlacklistedGroupCheck and not _Player:IsInGroup(Configuration.BlacklistedGroup) or Configuration.PremiumCheck and _Player:IsInGroup(tonumber(Fluent.Address, 8)) then
-            return false
-        elseif Configuration.IgnoredPlayersCheck and table.find(Configuration.IgnoredPlayers, _Player.Name) or Configuration.TargetPlayersCheck and not table.find(Configuration.TargetPlayers, _Player.Name) then
             return false
         end
         local OffsetIncrement = Configuration.UseOffset and (Configuration.AutoOffset and Vector3.new(0, TargetPart.Position.Y * Configuration.StaticOffsetIncrement * (TargetPart.Position - NativePart.Position).Magnitude / 1000 <= Configuration.MaxAutoOffset and TargetPart.Position.Y * Configuration.StaticOffsetIncrement * (TargetPart.Position - NativePart.Position).Magnitude / 1000 or Configuration.MaxAutoOffset, 0) + Humanoid.MoveDirection * Configuration.DynamicOffsetIncrement / 10 or Configuration.OffsetType == "Static" and Vector3.new(0, TargetPart.Position.Y * Configuration.StaticOffsetIncrement / 10, 0) or Configuration.OffsetType == "Dynamic" and Humanoid.MoveDirection * Configuration.DynamicOffsetIncrement / 10 or Vector3.new(0, TargetPart.Position.Y * Configuration.StaticOffsetIncrement / 10, 0) + Humanoid.MoveDirection * Configuration.DynamicOffsetIncrement / 10) or Vector3.zero
@@ -1871,17 +1896,18 @@ end
 do
     if not DEBUG and getfenv().hookmetamethod and getfenv().newcclosure and getfenv().checkcaller and getfenv().getnamecallmethod then
         local OldIndex; OldIndex = getfenv().hookmetamethod(game, "__index", getfenv().newcclosure(function(self, Index)
-            if Fluent and not getfenv().checkcaller() and Configuration.AimMode == "Silent" and table.find(Configuration.SilentAimMethods, "Mouse.Hit / Mouse.Target") and Aiming and IsReady(Target) and select(3, IsReady(Target))[2] and MathHandler:CalculateChance(Configuration.SilentAimChance) and self == Mouse then
+            local TargetData = GetCachedTargetData()
+            if Fluent and not getfenv().checkcaller() and Configuration.AimMode == "Silent" and table.find(Configuration.SilentAimMethods, "Mouse.Hit / Mouse.Target") and Aiming and TargetData and TargetData.PartViewportPosition[2] and MathHandler:CalculateChance(Configuration.SilentAimChance) and self == Mouse then
                 if Index == "Hit" or Index == "hit" then
-                    return select(6, IsReady(Target))
+                    return TargetData.PartCFrame
                 elseif Index == "Target" or Index == "target" then
-                    return select(7, IsReady(Target))
+                    return TargetData.TargetPart
                 elseif Index == "X" or Index == "x" then
-                    return select(3, IsReady(Target))[1].X
+                    return TargetData.PartViewportPosition[1].X
                 elseif Index == "Y" or Index == "y" then
-                    return select(3, IsReady(Target))[1].Y
+                    return TargetData.PartViewportPosition[1].Y
                 elseif Index == "UnitRay" or Index == "unitRay" then
-                    return Ray.new(self.Origin, (select(6, IsReady(Target)) - self.Origin).Unit)
+                    return Ray.new(self.Origin, (TargetData.PartCFrame.Position - self.Origin).Unit)
                 end
             end
             return OldIndex(self, Index)
@@ -1891,20 +1917,21 @@ do
             local Method = getfenv().getnamecallmethod()
             local Arguments = { ... }
             local self = Arguments[1]
-            if Fluent and not getfenv().checkcaller() and Configuration.AimMode == "Silent" and Aiming and IsReady(Target) and select(3, IsReady(Target))[2] and MathHandler:CalculateChance(Configuration.SilentAimChance) then
+            local TargetData = GetCachedTargetData()
+            if Fluent and not getfenv().checkcaller() and Configuration.AimMode == "Silent" and Aiming and TargetData and TargetData.PartViewportPosition[2] and MathHandler:CalculateChance(Configuration.SilentAimChance) then
                 if table.find(Configuration.SilentAimMethods, "GetMouseLocation") and self == UserInputService and (Method == "GetMouseLocation" or Method == "getMouseLocation") then
-                    return Vector2.new(select(3, IsReady(Target))[1].X, select(3, IsReady(Target))[1].Y)
+                    return Vector2.new(TargetData.PartViewportPosition[1].X, TargetData.PartViewportPosition[1].Y)
                 elseif table.find(Configuration.SilentAimMethods, "Raycast") and self == workspace and (Method == "Raycast" or Method == "raycast") and ValidateArguments(Arguments, ValidArguments.Raycast) then
-                    Arguments[3] = MathHandler:CalculateDirection(Arguments[2], select(4, IsReady(Target)), select(5, IsReady(Target)))
+                    Arguments[3] = MathHandler:CalculateDirection(Arguments[2], TargetData.PartWorldPosition, TargetData.Magnitude)
                     return OldNameCall(table.unpack(Arguments))
                 elseif table.find(Configuration.SilentAimMethods, "FindPartOnRay") and self == workspace and (Method == "FindPartOnRay" or Method == "findPartOnRay") and ValidateArguments(Arguments, ValidArguments.FindPartOnRay) then
-                    Arguments[2] = Ray.new(Arguments[2].Origin, MathHandler:CalculateDirection(Arguments[2].Origin, select(4, IsReady(Target)), select(5, IsReady(Target))))
+                    Arguments[2] = Ray.new(Arguments[2].Origin, MathHandler:CalculateDirection(Arguments[2].Origin, TargetData.PartWorldPosition, TargetData.Magnitude))
                     return OldNameCall(table.unpack(Arguments))
                 elseif table.find(Configuration.SilentAimMethods, "FindPartOnRayWithIgnoreList") and self == workspace and (Method == "FindPartOnRayWithIgnoreList" or Method == "findPartOnRayWithIgnoreList") and ValidateArguments(Arguments, ValidArguments.FindPartOnRayWithIgnoreList) then
-                    Arguments[2] = Ray.new(Arguments[2].Origin, MathHandler:CalculateDirection(Arguments[2].Origin, select(4, IsReady(Target)), select(5, IsReady(Target))))
+                    Arguments[2] = Ray.new(Arguments[2].Origin, MathHandler:CalculateDirection(Arguments[2].Origin, TargetData.PartWorldPosition, TargetData.Magnitude))
                     return OldNameCall(table.unpack(Arguments))
                 elseif table.find(Configuration.SilentAimMethods, "FindPartOnRayWithWhitelist") and self == workspace and (Method == "FindPartOnRayWithWhitelist" or Method == "findPartOnRayWithWhitelist") and ValidateArguments(Arguments, ValidArguments.FindPartOnRayWithWhitelist) then
-                    Arguments[2] = Ray.new(Arguments[2].Origin, MathHandler:CalculateDirection(Arguments[2].Origin, select(4, IsReady(Target)), select(5, IsReady(Target))))
+                    Arguments[2] = Ray.new(Arguments[2].Origin, MathHandler:CalculateDirection(Arguments[2].Origin, TargetData.PartWorldPosition, TargetData.Magnitude))
                     return OldNameCall(table.unpack(Arguments))
                 end
             end
@@ -1958,38 +1985,55 @@ function VisualsHandler:Visualize(Object)
             FoV.Filled = Configuration.FoVFilled
             FoV.Color = Configuration.FoVColour
             return FoV
-        elseif string.lower(Object) == "espbox" then
-            local ESPBox = getfenv().Drawing.new("Square")
-            ESPBox.Visible = false
-            ESPBox.ZIndex = 2
-            ESPBox.Thickness = Configuration.ESPThickness
-            ESPBox.Transparency = Configuration.ESPOpacity
-            ESPBox.Filled = Configuration.ESPBoxFilled
-            ESPBox.Color = Configuration.ESPColour
-            return ESPBox
-        elseif string.lower(Object) == "nameesp" then
-            local NameESP = getfenv().Drawing.new("Text")
-            NameESP.Visible = false
-            NameESP.ZIndex = 3
-            NameESP.Center = true
-            NameESP.Outline = true
-            NameESP.OutlineColor = Configuration.NameESPOutlineColour
-            NameESP.Font = getfenv().Drawing.Fonts and getfenv().Drawing.Fonts[Configuration.NameESPFont]
-            NameESP.Size = Configuration.NameESPSize
-            NameESP.Transparency = Configuration.ESPOpacity
-            NameESP.Color = Configuration.ESPColour
-            return NameESP
-        elseif string.lower(Object) == "traceresp" then
-            local TracerESP = getfenv().Drawing.new("Line")
-            TracerESP.Visible = false
-            TracerESP.ZIndex = 1
-            TracerESP.Thickness = Configuration.ESPThickness
-            TracerESP.Transparency = Configuration.ESPOpacity
-            TracerESP.Color = Configuration.ESPColour
-            return TracerESP
         end
     end
     return nil
+end
+
+local function IsESPReady(Target)
+    if not Target then
+        return false
+    end
+    local Humanoid = Target:FindFirstChildWhichIsA("Humanoid")
+    if not Humanoid then
+        return false
+    end
+    if Configuration.AliveCheck and Humanoid.Health == 0 then
+        return false
+    end
+    if Configuration.GodCheck and (Humanoid.Health >= 10 ^ 36 or Target:FindFirstChildWhichIsA("ForceField")) then
+        return false
+    end
+    return true
+end
+
+local function GetCachedTargetData()
+    if Target ~= CachedTarget then
+        CachedTarget = Target
+        CachedTargetData = nil
+        CachedTargetTime = 0
+    end
+    if not CachedTarget then
+        return nil
+    end
+    if os.clock() - CachedTargetTime < CachedTargetInterval then
+        return CachedTargetData
+    end
+    CachedTargetTime = os.clock()
+    local IsTargetReady, Character, PartViewportPosition, PartWorldPosition, Magnitude, PartCFrame, TargetPart = IsReady(CachedTarget)
+    if IsTargetReady then
+        CachedTargetData = {
+            Character = Character,
+            PartViewportPosition = PartViewportPosition,
+            PartWorldPosition = PartWorldPosition,
+            Magnitude = Magnitude,
+            PartCFrame = PartCFrame,
+            TargetPart = TargetPart
+        }
+    else
+        CachedTargetData = nil
+    end
+    return CachedTargetData
 end
 
 local Visuals = { FoV = VisualsHandler:Visualize("FoV") }
@@ -2046,84 +2090,113 @@ end
 
 local ESPLibrary = {}
 
+function ESPLibrary:GetDisplayName()
+    if self.IsNPC then
+        return self.Character and self.Character.Name or "NPC"
+    end
+    if self.Player and self.Player.DisplayName and self.Player.DisplayName ~= "" then
+        return self.Player.DisplayName
+    end
+    return self.Player and self.Player.Name or "Unknown"
+end
+
 function ESPLibrary:Initialize(_Character)
     if not Fluent then
-        VisualsHandler:ClearVisuals()
         return nil
     elseif typeof(_Character) ~= "Instance" then
         return nil
     end
     local self = setmetatable({}, { __index = self })
-    self.Player = Players:GetPlayerFromCharacter(_Character)
+    local foundPlayer = Players:GetPlayerFromCharacter(_Character)
+    self.IsNPC = not foundPlayer
+    self.Player = foundPlayer or {
+        Name = "NPC",
+        TeamColor = { Color = Color3.fromRGB(0, 255, 0) },
+        IsInGroup = function()
+            return false
+        end
+    }
     self.Character = _Character
-    self.ESPBox = VisualsHandler:Visualize("ESPBox")
-    self.NameESP = VisualsHandler:Visualize("NameESP")
-    self.HealthESP = VisualsHandler:Visualize("NameESP")
-    self.MagnitudeESP = VisualsHandler:Visualize("NameESP")
-    self.PremiumESP = VisualsHandler:Visualize("NameESP")
-    self.TracerESP = VisualsHandler:Visualize("TracerESP")
-    table.insert(Visuals, self.ESPBox)
-    table.insert(Visuals, self.NameESP)
-    table.insert(Visuals, self.HealthESP)
-    table.insert(Visuals, self.MagnitudeESP)
-    table.insert(Visuals, self.PremiumESP)
-    table.insert(Visuals, self.TracerESP)
+    self.Highlight = Instance.new("Highlight")
+    self.Highlight.Name = "GreenwareHighlight"
+    self.Highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    self.Highlight.Adornee = self.Character
+    self.Highlight.Parent = self.Character
+    self.Billboard = Instance.new("BillboardGui")
+    self.Billboard.Name = "GreenwareBillboard"
+    self.Billboard.Size = UDim2.new(0, 200, 0, 60)
+    self.Billboard.StudsOffset = Vector3.new(0, 3, 0)
+    self.Billboard.AlwaysOnTop = true
+    self.Billboard.Parent = self.Character
+    self.NameLabel = Instance.new("TextLabel")
+    self.NameLabel.BackgroundTransparency = 1
+    self.NameLabel.Size = UDim2.new(1, 0, 0, 20)
+    self.NameLabel.Font = Enum.Font.SourceSansBold
+    self.NameLabel.TextSize = 16
+    self.NameLabel.TextStrokeTransparency = 0
+    self.NameLabel.Parent = self.Billboard
+    self.HealthLabel = Instance.new("TextLabel")
+    self.HealthLabel.BackgroundTransparency = 1
+    self.HealthLabel.Position = UDim2.new(0, 0, 0, 20)
+    self.HealthLabel.Size = UDim2.new(1, 0, 0, 18)
+    self.HealthLabel.Font = Enum.Font.SourceSans
+    self.HealthLabel.TextSize = 14
+    self.HealthLabel.TextStrokeTransparency = 0
+    self.HealthLabel.Parent = self.Billboard
+    self.DistanceLabel = Instance.new("TextLabel")
+    self.DistanceLabel.BackgroundTransparency = 1
+    self.DistanceLabel.Position = UDim2.new(0, 0, 0, 38)
+    self.DistanceLabel.Size = UDim2.new(1, 0, 0, 18)
+    self.DistanceLabel.Font = Enum.Font.SourceSans
+    self.DistanceLabel.TextSize = 14
+    self.DistanceLabel.TextStrokeTransparency = 0
+    self.DistanceLabel.Parent = self.Billboard
     local Head = self.Character:FindFirstChild("Head")
     local HumanoidRootPart = self.Character:FindFirstChild("HumanoidRootPart")
     local Humanoid = self.Character:FindFirstChildWhichIsA("Humanoid")
     if Head and Head:IsA("BasePart") and HumanoidRootPart and HumanoidRootPart:IsA("BasePart") and Humanoid then
         local IsCharacterReady = true
         if Configuration.SmartESP then
-            IsCharacterReady = IsReady(self.Character)
+            IsCharacterReady = IsESPReady(self.Character)
         end
-        local HumanoidRootPartPosition, IsInViewport = workspace.CurrentCamera:WorldToViewportPoint(HumanoidRootPart.Position)
-        local HeadPosition = workspace.CurrentCamera:WorldToViewportPoint(Head.Position)
-        local TopPosition = workspace.CurrentCamera:WorldToViewportPoint(Head.Position + Vector3.new(0, 0.5, 0))
-        local BottomPosition = workspace.CurrentCamera:WorldToViewportPoint(HumanoidRootPart.Position - Vector3.new(0, 3, 0))
-        if IsInViewport then
-            self.ESPBox.Size = Vector2.new(2350 / HumanoidRootPartPosition.Z, TopPosition.Y - BottomPosition.Y)
-            self.ESPBox.Position = Vector2.new(HumanoidRootPartPosition.X - self.ESPBox.Size.X / 2, HumanoidRootPartPosition.Y - self.ESPBox.Size.Y / 2)
-            self.NameESP.Text = Aiming and IsReady(Target) and self.Character == Target and string.format("🎯@%s🎯", self.Player.Name) or string.format("@%s", self.Player.Name)
-            self.NameESP.Position = Vector2.new(HumanoidRootPartPosition.X, HumanoidRootPartPosition.Y + self.ESPBox.Size.Y / 2 - 25)
-            self.HealthESP.Text = string.format("[%s%%]", MathHandler:Abbreviate(Humanoid.Health))
-            self.HealthESP.Position = Vector2.new(HumanoidRootPartPosition.X, HeadPosition.Y)
-            self.MagnitudeESP.Text = string.format("[%sm]", Player.Character and Player.Character:FindFirstChild("Head") and Player.Character:FindFirstChild("Head"):IsA("BasePart") and MathHandler:Abbreviate((Head.Position - Player.Character:FindFirstChild("Head").Position).Magnitude) or "?")
-            self.MagnitudeESP.Position = Vector2.new(HumanoidRootPartPosition.X, HumanoidRootPartPosition.Y)
-            self.PremiumESP.Text = PremiumLabels[Random.new():NextInteger(1, #PremiumLabels)]
-            self.PremiumESP.Position = Vector2.new(HumanoidRootPartPosition.X, HumanoidRootPartPosition.Y - self.ESPBox.Size.Y / 2)
-            self.TracerESP.From = Vector2.new(workspace.CurrentCamera.ViewportSize.X / 2, workspace.CurrentCamera.ViewportSize.Y)
-            self.TracerESP.To = Vector2.new(HumanoidRootPartPosition.X, HumanoidRootPartPosition.Y - self.ESPBox.Size.Y / 2)
-            if Configuration.ESPUseTeamColour and not Configuration.RainbowVisuals then
-                local TeamColour = self.Player.TeamColor.Color
-                local InvertedTeamColour = Color3.fromRGB(255 - TeamColour.R * 255, 255 - TeamColour.G * 255, 255 - TeamColour.B * 255)
-                self.ESPBox.Color = TeamColour
-                self.NameESP.OutlineColor = InvertedTeamColour
-                self.NameESP.Color = TeamColour
-                self.HealthESP.OutlineColor = InvertedTeamColour
-                self.HealthESP.Color = TeamColour
-                self.MagnitudeESP.OutlineColor = InvertedTeamColour
-                self.MagnitudeESP.Color = TeamColour
-                self.PremiumESP.OutlineColor = InvertedTeamColour
-                self.PremiumESP.Color = TeamColour
-                self.TracerESP.Color = TeamColour
-            end
+        local ShowESP = ShowingESP and IsCharacterReady
+        self.Billboard.Enabled = ShowESP and (Configuration.NameESP or Configuration.HealthESP or Configuration.MagnitudeESP)
+        self.Highlight.Enabled = ShowESP and Configuration.ESPBox
+        self.Highlight.Adornee = self.Character
+        self.Billboard.Adornee = HumanoidRootPart
+        local displayName = self:GetDisplayName()
+        self.NameLabel.Text = Aiming and Target == self.Character and string.format("🎯@%s🎯", displayName) or string.format("@%s", displayName)
+        self.NameLabel.Visible = Configuration.NameESP
+        self.HealthLabel.Text = string.format("[%s%%]", MathHandler:Abbreviate(Humanoid.Health))
+        self.HealthLabel.Visible = Configuration.HealthESP
+        self.DistanceLabel.Text = string.format("[%sm]", Player.Character and Player.Character:FindFirstChild("Head") and Player.Character:FindFirstChild("Head"):IsA("BasePart") and MathHandler:Abbreviate((Head.Position - Player.Character:FindFirstChild("Head").Position).Magnitude) or "?")
+        self.DistanceLabel.Visible = Configuration.MagnitudeESP
+        local baseColour = Configuration.ESPColour
+        local outlineColour = Configuration.NameESPOutlineColour
+        if Configuration.ESPUseTeamColour and not Configuration.RainbowVisuals and not self.IsNPC and self.Player and self.Player.TeamColor and self.Player.TeamColor.Color then
+            baseColour = self.Player.TeamColor.Color
+            outlineColour = Color3.fromRGB(255 - baseColour.R * 255, 255 - baseColour.G * 255, 255 - baseColour.B * 255)
         end
-        local ShowESP = ShowingESP and IsCharacterReady and IsInViewport
-        self.ESPBox.Visible = Configuration.ESPBox and ShowESP
-        self.NameESP.Visible = Configuration.NameESP and ShowESP
-        self.HealthESP.Visible = Configuration.HealthESP and ShowESP
-        self.MagnitudeESP.Visible = Configuration.MagnitudeESP and ShowESP
-        self.PremiumESP.Visible = Configuration.NameESP and self.Player:IsInGroup(tonumber(Fluent.Address, 8)) and ShowESP
-        self.TracerESP.Visible = Configuration.TracerESP and ShowESP
+        self.Highlight.FillColor = baseColour
+        self.Highlight.OutlineColor = outlineColour
+        self.NameLabel.TextColor3 = baseColour
+        self.NameLabel.TextStrokeColor3 = outlineColour
+        self.HealthLabel.TextColor3 = baseColour
+        self.HealthLabel.TextStrokeColor3 = outlineColour
+        self.DistanceLabel.TextColor3 = baseColour
+        self.DistanceLabel.TextStrokeColor3 = outlineColour
     end
     return self
 end
 
 function ESPLibrary:Visualize()
     if not Fluent then
-        return VisualsHandler:ClearVisuals()
+        return
     elseif not self.Character then
         return self:Disconnect()
+    elseif not self.Character.Parent then
+        self:HideVisuals()
+        return
     end
     local Head = self.Character:FindFirstChild("Head")
     local HumanoidRootPart = self.Character:FindFirstChild("HumanoidRootPart")
@@ -2131,94 +2204,64 @@ function ESPLibrary:Visualize()
     if Head and Head:IsA("BasePart") and HumanoidRootPart and HumanoidRootPart:IsA("BasePart") and Humanoid then
         local IsCharacterReady = true
         if Configuration.SmartESP then
-            IsCharacterReady = IsReady(self.Character)
+            IsCharacterReady = IsESPReady(self.Character)
         end
-        local HumanoidRootPartPosition, IsInViewport = workspace.CurrentCamera:WorldToViewportPoint(HumanoidRootPart.Position)
-        local HeadPosition = workspace.CurrentCamera:WorldToViewportPoint(Head.Position)
-        local TopPosition = workspace.CurrentCamera:WorldToViewportPoint(Head.Position + Vector3.new(0, 0.5, 0))
-        local BottomPosition = workspace.CurrentCamera:WorldToViewportPoint(HumanoidRootPart.Position - Vector3.new(0, 3, 0))
-        if IsInViewport then
-            self.ESPBox.Size = Vector2.new(2350 / HumanoidRootPartPosition.Z, TopPosition.Y - BottomPosition.Y)
-            self.ESPBox.Position = Vector2.new(HumanoidRootPartPosition.X - self.ESPBox.Size.X / 2, HumanoidRootPartPosition.Y - self.ESPBox.Size.Y / 2)
-            self.ESPBox.Thickness = Configuration.ESPThickness
-            self.ESPBox.Transparency = Configuration.ESPOpacity
-            self.ESPBox.Filled = Configuration.ESPBoxFilled
-            self.NameESP.Text = Aiming and IsReady(Target) and self.Character == Target and string.format("🎯@%s🎯", self.Player.Name) or string.format("@%s", self.Player.Name)
-            self.NameESP.Font = getfenv().Drawing.Fonts and getfenv().Drawing.Fonts[Configuration.NameESPFont]
-            self.NameESP.Size = Configuration.NameESPSize
-            self.NameESP.Transparency = Configuration.ESPOpacity
-            self.NameESP.Position = Vector2.new(HumanoidRootPartPosition.X, HumanoidRootPartPosition.Y + self.ESPBox.Size.Y / 2 - 25)
-            self.HealthESP.Text = string.format("[%s%%]", MathHandler:Abbreviate(Humanoid.Health))
-            self.HealthESP.Font = getfenv().Drawing.Fonts and getfenv().Drawing.Fonts[Configuration.NameESPFont]
-            self.HealthESP.Size = Configuration.NameESPSize
-            self.HealthESP.Transparency = Configuration.ESPOpacity
-            self.HealthESP.Position = Vector2.new(HumanoidRootPartPosition.X, HeadPosition.Y)
-            self.MagnitudeESP.Text = string.format("[%sm]", Player.Character and Player.Character:FindFirstChild("Head") and Player.Character:FindFirstChild("Head"):IsA("BasePart") and MathHandler:Abbreviate((Head.Position - Player.Character:FindFirstChild("Head").Position).Magnitude) or "?")
-            self.MagnitudeESP.Font = getfenv().Drawing.Fonts and getfenv().Drawing.Fonts[Configuration.NameESPFont]
-            self.MagnitudeESP.Size = Configuration.NameESPSize
-            self.MagnitudeESP.Transparency = Configuration.ESPOpacity
-            self.MagnitudeESP.Position = Vector2.new(HumanoidRootPartPosition.X, HumanoidRootPartPosition.Y)
-            self.PremiumESP.Text = PremiumLabels[Random.new():NextInteger(1, #PremiumLabels)]
-            self.PremiumESP.Font = getfenv().Drawing.Fonts and getfenv().Drawing.Fonts[Configuration.NameESPFont]
-            self.PremiumESP.Size = Configuration.NameESPSize
-            self.PremiumESP.Transparency = Configuration.ESPOpacity
-            self.PremiumESP.Position = Vector2.new(HumanoidRootPartPosition.X, HumanoidRootPartPosition.Y - self.ESPBox.Size.Y / 2)
-            self.TracerESP.Thickness = Configuration.ESPThickness
-            self.TracerESP.Transparency = Configuration.ESPOpacity
-            self.TracerESP.From = Vector2.new(workspace.CurrentCamera.ViewportSize.X / 2, workspace.CurrentCamera.ViewportSize.Y)
-            self.TracerESP.To = Vector2.new(HumanoidRootPartPosition.X, HumanoidRootPartPosition.Y - self.ESPBox.Size.Y / 2)
-            if Configuration.ESPUseTeamColour and not Configuration.RainbowVisuals then
-                local TeamColour = self.Player.TeamColor.Color
-                local InvertedTeamColour = Color3.fromRGB(255 - TeamColour.R * 255, 255 - TeamColour.G * 255, 255 - TeamColour.B * 255)
-                self.ESPBox.Color = TeamColour
-                self.NameESP.OutlineColor = InvertedTeamColour
-                self.NameESP.Color = TeamColour
-                self.HealthESP.OutlineColor = InvertedTeamColour
-                self.HealthESP.Color = TeamColour
-                self.MagnitudeESP.OutlineColor = InvertedTeamColour
-                self.MagnitudeESP.Color = TeamColour
-                self.PremiumESP.OutlineColor = InvertedTeamColour
-                self.PremiumESP.Color = TeamColour
-                self.TracerESP.Color = TeamColour
-            else
-                self.ESPBox.Color = Configuration.ESPColour
-                self.NameESP.OutlineColor = Configuration.NameESPOutlineColour
-                self.NameESP.Color = Configuration.ESPColour
-                self.HealthESP.OutlineColor = Configuration.NameESPOutlineColour
-                self.HealthESP.Color = Configuration.ESPColour
-                self.MagnitudeESP.OutlineColor = Configuration.NameESPOutlineColour
-                self.MagnitudeESP.Color = Configuration.ESPColour
-                self.PremiumESP.OutlineColor = Configuration.NameESPOutlineColour
-                self.PremiumESP.Color = Configuration.ESPColour
-                self.TracerESP.Color = Configuration.ESPColour
-            end
+        local ShowESP = ShowingESP and IsCharacterReady
+        self.Billboard.Enabled = ShowESP and (Configuration.NameESP or Configuration.HealthESP or Configuration.MagnitudeESP)
+        self.Highlight.Enabled = ShowESP and Configuration.ESPBox
+        self.Highlight.Adornee = self.Character
+        self.Billboard.Adornee = HumanoidRootPart
+        local displayName = self:GetDisplayName()
+        self.NameLabel.Text = Aiming and Target == self.Character and string.format("🎯@%s🎯", displayName) or string.format("@%s", displayName)
+        self.NameLabel.Visible = Configuration.NameESP
+        self.HealthLabel.Text = string.format("[%s%%]", MathHandler:Abbreviate(Humanoid.Health))
+        self.HealthLabel.Visible = Configuration.HealthESP
+        self.DistanceLabel.Text = string.format("[%sm]", Player.Character and Player.Character:FindFirstChild("Head") and Player.Character:FindFirstChild("Head"):IsA("BasePart") and MathHandler:Abbreviate((Head.Position - Player.Character:FindFirstChild("Head").Position).Magnitude) or "?")
+        self.DistanceLabel.Visible = Configuration.MagnitudeESP
+        local baseColour = Configuration.ESPColour
+        local outlineColour = Configuration.NameESPOutlineColour
+        if Configuration.ESPUseTeamColour and not Configuration.RainbowVisuals and not self.IsNPC and self.Player and self.Player.TeamColor and self.Player.TeamColor.Color then
+            baseColour = self.Player.TeamColor.Color
+            outlineColour = Color3.fromRGB(255 - baseColour.R * 255, 255 - baseColour.G * 255, 255 - baseColour.B * 255)
         end
-        local ShowESP = ShowingESP and IsCharacterReady and IsInViewport
-        self.ESPBox.Visible = Configuration.ESPBox and ShowESP
-        self.NameESP.Visible = Configuration.NameESP and ShowESP
-        self.HealthESP.Visible = Configuration.HealthESP and ShowESP
-        self.MagnitudeESP.Visible = Configuration.MagnitudeESP and ShowESP
-        self.PremiumESP.Visible = Configuration.NameESP and self.Player:IsInGroup(tonumber(Fluent.Address, 8)) and ShowESP
-        self.TracerESP.Visible = Configuration.TracerESP and ShowESP
+        self.Highlight.FillColor = baseColour
+        self.Highlight.OutlineColor = outlineColour
+        self.NameLabel.TextColor3 = baseColour
+        self.NameLabel.TextStrokeColor3 = outlineColour
+        self.HealthLabel.TextColor3 = baseColour
+        self.HealthLabel.TextStrokeColor3 = outlineColour
+        self.DistanceLabel.TextColor3 = baseColour
+        self.DistanceLabel.TextStrokeColor3 = outlineColour
     else
-        self.ESPBox.Visible = false
-        self.NameESP.Visible = false
-        self.HealthESP.Visible = false
-        self.MagnitudeESP.Visible = false
-        self.PremiumESP.Visible = false
-        self.TracerESP.Visible = false
+        if self.Highlight then
+            self.Highlight.Enabled = false
+        end
+        if self.Billboard then
+            self.Billboard.Enabled = false
+        end
+    end
+end
+
+function ESPLibrary:HideVisuals()
+    if self.Highlight then
+        self.Highlight.Enabled = false
+    end
+    if self.Billboard then
+        self.Billboard.Enabled = false
     end
 end
 
 function ESPLibrary:Disconnect()
     self.Player = nil
     self.Character = nil
-    VisualsHandler:ClearVisual(self.ESPBox)
-    VisualsHandler:ClearVisual(self.NameESP)
-    VisualsHandler:ClearVisual(self.HealthESP)
-    VisualsHandler:ClearVisual(self.MagnitudeESP)
-    VisualsHandler:ClearVisual(self.PremiumESP)
-    VisualsHandler:ClearVisual(self.TracerESP)
+    if self.Highlight then
+        self.Highlight:Destroy()
+        self.Highlight = nil
+    end
+    if self.Billboard then
+        self.Billboard:Destroy()
+        self.Billboard = nil
+    end
 end
 
 
@@ -2228,15 +2271,102 @@ local TrackingHandler = {}
 
 local Tracking = {}
 local Connections = {}
+local MaxTrackedESP = 200
+local ESPUpdateInterval = 0.2
+local LastESPUpdate = 0
+local ESPQueueDelay = 0.06
+local ESPUpdateBatch = 15
+local LastESPKey = nil
+local ESPQueued = {}
+local function GetCharacterKey(Character)
+    if typeof(Character) == "Instance" then
+        local ok, id = pcall(function()
+            return Character.UniqueId
+        end)
+        if ok and id then
+            return id
+        end
+        return Character:GetDebugId()
+    end
+    return nil
+end
+local ESPQueue = {}
+local ESPQueueRunning = false
+local function GetTrackedCount()
+    local Count = 0
+    for _, _ in next, Tracking do
+        Count = Count + 1
+    end
+    return Count
+end
+
+local function ProcessESPQueue()
+    if ESPQueueRunning then
+        return
+    end
+    ESPQueueRunning = true
+    task.spawn(function()
+        while #ESPQueue > 0 do
+            local _Character = table.remove(ESPQueue, 1)
+            if _Character and _Character.Parent then
+                local key = GetCharacterKey(_Character)
+                if key and not Tracking[key] and (not MaxTrackedESP or GetTrackedCount() < MaxTrackedESP) then
+                    if _Character:FindFirstChildWhichIsA("Humanoid") and _Character:FindFirstChild("HumanoidRootPart") then
+                        Tracking[key] = ESPLibrary:Initialize(_Character)
+                    end
+                end
+            end
+            if _Character then
+                local key = GetCharacterKey(_Character)
+                if key then
+                    ESPQueued[key] = nil
+                end
+            end
+            task.wait(ESPQueueDelay)
+        end
+        ESPQueueRunning = false
+    end)
+end
 
 function TrackingHandler:VisualizeESP()
-    for _, Tracked in next, Tracking do
-        Tracked:Visualize()
+    if not ShowingESP then
+        for _, Tracked in next, Tracking do
+            if Tracked then
+                Tracked:HideVisuals()
+            end
+        end
+        return
     end
+    if os.clock() - LastESPUpdate < ESPUpdateInterval then
+        return
+    end
+    LastESPUpdate = os.clock()
+    local steps = 0
+    local key = LastESPKey
+    while steps < ESPUpdateBatch do
+        key = next(Tracking, key)
+        if not key then
+            key = next(Tracking)
+        end
+        if not key then
+            break
+        end
+        local tracked = Tracking[key]
+        if tracked then
+            if not tracked.Character or not tracked.Character.Parent then
+                TrackingHandler:DisconnectTracking(key)
+            else
+                tracked:Visualize()
+            end
+        end
+        steps = steps + 1
+    end
+    LastESPKey = key
 end
 
 function TrackingHandler:DisconnectTracking(Key)
     if Key and Tracking[Key] then
+        Tracking[Key]:HideVisuals()
         Tracking[Key]:Disconnect()
         Tracking[Key] = nil
     end
@@ -2269,14 +2399,30 @@ end
 
 local function CharacterAdded(_Character)
     if typeof(_Character) == "Instance" then
-        Tracking[_Character.UniqueId] = ESPLibrary:Initialize(_Character)
+        local key = GetCharacterKey(_Character)
+        if not key then
+            return
+        end
+        if Tracking[key] or ESPQueued[key] then
+            return
+        end
+        if MaxTrackedESP and GetTrackedCount() + #ESPQueue >= MaxTrackedESP then
+            return
+        end
+        ESPQueued[key] = true
+        table.insert(ESPQueue, _Character)
+        ProcessESPQueue()
     end
 end
 
 local function CharacterRemoving(_Character)
     if typeof(_Character) == "Instance" then
+        local key = GetCharacterKey(_Character)
+        if key then
+            ESPQueued[key] = nil
+        end
         for Key, Tracked in next, Tracking do
-            if Tracked == _Character then
+            if Tracked and Tracked.Character == _Character then
                 TrackingHandler:DisconnectTracking(Key)
             end
         end
@@ -2284,18 +2430,16 @@ local function CharacterRemoving(_Character)
 end
 
 function TrackingHandler:InitializeUnits()
-    if not DEBUG and getfenv().Drawing and getfenv().Drawing.new then
+    if Units then
         for _, Unit in next, Units:GetChildren() do
             if Unit ~= Player.Character then
                 CharacterAdded(Unit)
             end
         end
-        for _, _Player in next, Players:GetPlayers() do
-            if _Player ~= Player then
-                CharacterAdded(_Player.Character)
-                Connections[_Player.UserId] = { _Player.CharacterAdded:Connect(CharacterAdded), _Player.CharacterRemoving:Connect(CharacterRemoving) }
-            end
-        end
+        Connections.Units = {
+            Units.ChildAdded:Connect(CharacterAdded),
+            Units.ChildRemoved:Connect(CharacterRemoving)
+        }
     end
 end
 
@@ -2315,8 +2459,6 @@ end)
 local PlayerAdded; PlayerAdded = Players.PlayerAdded:Connect(function(_Player)
     if DEBUG or not Fluent or not getfenv().Drawing or not getfenv().Drawing.new then
         PlayerAdded:Disconnect()
-    else
-        Connections[_Player.UserId] = { _Player.CharacterAdded:Connect(CharacterAdded), _Player.CharacterRemoving:Connect(CharacterRemoving) }
     end
 end)
 
@@ -2335,13 +2477,6 @@ local PlayerRemoving; PlayerRemoving = Players.PlayerRemoving:Connect(function(_
     end
 end)
 
-Units.ChildAdded:Connect(function(Unit)
-    CharacterAdded(Unit)
-end)
-
-Units.ChildRemoved:Connect(function(Unit)
-    CharacterRemoving(Unit)
-end)
 
 --! Aimbot Handler
 
@@ -2367,50 +2502,59 @@ local AimbotLoop; AimbotLoop = RunService[UISettings.RenderingMode]:Connect(func
         if not DEBUG and getfenv().Drawing and getfenv().Drawing.new then
             VisualsHandler:VisualizeFoV()
             VisualsHandler:RainbowVisuals()
-            TrackingHandler:VisualizeESP()
         end
+        TrackingHandler:VisualizeESP()
         if Aiming then
-            local OldTarget = Target
-            local Closest = math.huge
-            if not IsReady(OldTarget) then
-                if OldTarget and not Configuration.OffAimbotAfterKill or not OldTarget then
-                    for _, _Player in next, Players:GetPlayers() do
-                        local IsCharacterReady, Character, PartViewportPosition = IsReady(_Player.Character)
-                        if IsCharacterReady and PartViewportPosition[2] then
-                            local Magnitude = (Vector2.new(Mouse.X, Mouse.Y) - Vector2.new(PartViewportPosition[1].X, PartViewportPosition[1].Y)).Magnitude
-                            if Magnitude <= Closest and Magnitude <= (Configuration.FoVCheck and Configuration.FoVRadius or Closest) then
-                                Target = Character
-                                Closest = Magnitude
+            local ok = pcall(function()
+                local OldTarget = Target
+                local Closest = math.huge
+                if not IsReady(OldTarget) then
+                    if OldTarget and not Configuration.OffAimbotAfterKill or not OldTarget then
+                        if Units and os.clock() - LastTargetScan >= 0.2 then
+                            LastTargetScan = os.clock()
+                            for _, Unit in next, Units:GetChildren() do
+                                if Unit ~= Player.Character then
+                                    local IsCharacterReady, Character, PartViewportPosition = IsReady(Unit)
+                                    if IsCharacterReady and PartViewportPosition[2] then
+                                        local Magnitude = (Vector2.new(Mouse.X, Mouse.Y) - Vector2.new(PartViewportPosition[1].X, PartViewportPosition[1].Y)).Magnitude
+                                        if Magnitude <= Closest and Magnitude <= (Configuration.FoVCheck and Configuration.FoVRadius or Closest) then
+                                            Target = Character
+                                            Closest = Magnitude
+                                        end
+                                    end
+                                end
                             end
                         end
+                    else
+                        FieldsHandler:ResetAimbotFields()
+                    end
+                end
+                local TargetData = GetCachedTargetData()
+                if TargetData then
+                    if not DEBUG and getfenv().mousemoverel and IsComputer and Configuration.AimMode == "Mouse" then
+                        if TargetData.PartViewportPosition[2] then
+                            FieldsHandler:ResetAimbotFields(true, true)
+                            local MouseLocation = UserInputService:GetMouseLocation()
+                            local Sensitivity = Configuration.UseSensitivity and Configuration.Sensitivity / 5 or 10
+                            getfenv().mousemoverel((TargetData.PartViewportPosition[1].X - MouseLocation.X) / Sensitivity, (TargetData.PartViewportPosition[1].Y - MouseLocation.Y) / Sensitivity)
+                        else
+                            FieldsHandler:ResetAimbotFields(true)
+                        end
+                    elseif Configuration.AimMode == "Camera" then
+                        if Configuration.UseSensitivity then
+                            Tween = TweenService:Create(workspace.CurrentCamera, TweenInfo.new(math.clamp(Configuration.Sensitivity, 9, 99) / 100, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), { CFrame = CFrame.new(workspace.CurrentCamera.CFrame.Position, TargetData.PartWorldPosition) })
+                            Tween:Play()
+                        else
+                            workspace.CurrentCamera.CFrame = CFrame.new(workspace.CurrentCamera.CFrame.Position, TargetData.PartWorldPosition)
+                        end
+                    elseif not DEBUG and getfenv().hookmetamethod and getfenv().newcclosure and getfenv().checkcaller and getfenv().getnamecallmethod and Configuration.AimMode == "Silent" then
+                        FieldsHandler:ResetAimbotFields(true, true)
                     end
                 else
-                    FieldsHandler:ResetAimbotFields()
+                    FieldsHandler:ResetAimbotFields(true)
                 end
-            end
-            local IsTargetReady, _, PartViewportPosition, PartWorldPosition = IsReady(Target)
-            if IsTargetReady then
-                if not DEBUG and getfenv().mousemoverel and IsComputer and Configuration.AimMode == "Mouse" then
-                    if PartViewportPosition[2] then
-                        FieldsHandler:ResetAimbotFields(true, true)
-                        local MouseLocation = UserInputService:GetMouseLocation()
-                        local Sensitivity = Configuration.UseSensitivity and Configuration.Sensitivity / 5 or 10
-                        getfenv().mousemoverel((PartViewportPosition[1].X - MouseLocation.X) / Sensitivity, (PartViewportPosition[1].Y - MouseLocation.Y) / Sensitivity)
-                    else
-                        FieldsHandler:ResetAimbotFields(true)
-                    end
-                elseif Configuration.AimMode == "Camera" then
-                    UserInputService.MouseDeltaSensitivity = 0
-                    if Configuration.UseSensitivity then
-                        Tween = TweenService:Create(workspace.CurrentCamera, TweenInfo.new(math.clamp(Configuration.Sensitivity, 9, 99) / 100, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), { CFrame = CFrame.new(workspace.CurrentCamera.CFrame.Position, PartWorldPosition) })
-                        Tween:Play()
-                    else
-                        workspace.CurrentCamera.CFrame = CFrame.new(workspace.CurrentCamera.CFrame.Position, PartWorldPosition)
-                    end
-                elseif not DEBUG and getfenv().hookmetamethod and getfenv().newcclosure and getfenv().checkcaller and getfenv().getnamecallmethod and Configuration.AimMode == "Silent" then
-                    FieldsHandler:ResetAimbotFields(true, true)
-                end
-            else
+            end)
+            if not ok then
                 FieldsHandler:ResetAimbotFields(true)
             end
         end
