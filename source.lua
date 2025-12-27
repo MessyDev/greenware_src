@@ -2306,6 +2306,7 @@ function TrackingHandler:VisualizeESP()
             end
         end
         return
+    end
     if os.clock() - LastESPUpdate < ESPUpdateInterval then
         return
     end
