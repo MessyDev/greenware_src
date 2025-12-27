@@ -1789,7 +1789,7 @@ end
 
 --! Targets Handler
 
-local function IsReady(Target)
+local function IsReady(Target, SkipWallCheck)
     if Target and Target:FindFirstChildWhichIsA("Humanoid") and Configuration.AimPart and Target:FindFirstChild(Configuration.AimPart) and Target:FindFirstChild(Configuration.AimPart):IsA("BasePart") and Player.Character and Player.Character:FindFirstChildWhichIsA("Humanoid") and Player.Character:FindFirstChild(Configuration.AimPart) and Player.Character:FindFirstChild(Configuration.AimPart):IsA("BasePart") then
         local _Player = Players:GetPlayerFromCharacter(Target)
         if _Player == Player then
@@ -1820,7 +1820,7 @@ local function IsReady(Target)
                 return false
             end
         end
-        if Configuration.WallCheck then
+        if Configuration.WallCheck and not SkipWallCheck then
             local RayDirection = MathHandler:CalculateDirection(NativePart.Position, TargetPart.Position, (TargetPart.Position - NativePart.Position).Magnitude)
             local RaycastParameters = RaycastParams.new()
             RaycastParameters.FilterType = Enum.RaycastFilterType.Exclude
@@ -1975,35 +1975,6 @@ function VisualsHandler:Visualize(Object)
             FoV.Filled = Configuration.FoVFilled
             FoV.Color = Configuration.FoVColour
             return FoV
-        elseif string.lower(Object) == "espbox" then
-            local ESPBox = getfenv().Drawing.new("Square")
-            ESPBox.Visible = false
-            ESPBox.ZIndex = 2
-            ESPBox.Thickness = Configuration.ESPThickness
-            ESPBox.Transparency = Configuration.ESPOpacity
-            ESPBox.Filled = Configuration.ESPBoxFilled
-            ESPBox.Color = Configuration.ESPColour
-            return ESPBox
-        elseif string.lower(Object) == "nameesp" then
-            local NameESP = getfenv().Drawing.new("Text")
-            NameESP.Visible = false
-            NameESP.ZIndex = 3
-            NameESP.Center = true
-            NameESP.Outline = true
-            NameESP.OutlineColor = Configuration.NameESPOutlineColour
-            NameESP.Font = getfenv().Drawing.Fonts and getfenv().Drawing.Fonts[Configuration.NameESPFont]
-            NameESP.Size = Configuration.NameESPSize
-            NameESP.Transparency = Configuration.ESPOpacity
-            NameESP.Color = Configuration.ESPColour
-            return NameESP
-        elseif string.lower(Object) == "traceresp" then
-            local TracerESP = getfenv().Drawing.new("Line")
-            TracerESP.Visible = false
-            TracerESP.ZIndex = 1
-            TracerESP.Thickness = Configuration.ESPThickness
-            TracerESP.Transparency = Configuration.ESPOpacity
-            TracerESP.Color = Configuration.ESPColour
-            return TracerESP
         end
     end
     return nil
@@ -2129,7 +2100,7 @@ function ESPLibrary:Initialize(_Character)
     if Head and Head:IsA("BasePart") and HumanoidRootPart and HumanoidRootPart:IsA("BasePart") and Humanoid then
         local IsCharacterReady = true
         if Configuration.SmartESP then
-            IsCharacterReady = IsReady(self.Character)
+            IsCharacterReady = IsReady(self.Character, true)
         end
         local ShowESP = ShowingESP and IsCharacterReady
         self.Billboard.Enabled = ShowESP and (Configuration.NameESP or Configuration.HealthESP or Configuration.MagnitudeESP)
@@ -2175,7 +2146,7 @@ function ESPLibrary:Visualize()
     if Head and Head:IsA("BasePart") and HumanoidRootPart and HumanoidRootPart:IsA("BasePart") and Humanoid then
         local IsCharacterReady = true
         if Configuration.SmartESP then
-            IsCharacterReady = IsReady(self.Character)
+            IsCharacterReady = IsReady(self.Character, true)
         end
         local ShowESP = ShowingESP and IsCharacterReady
         self.Billboard.Enabled = ShowESP and (Configuration.NameESP or Configuration.HealthESP or Configuration.MagnitudeESP)
