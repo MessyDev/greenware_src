@@ -243,7 +243,6 @@ local CachedTarget = nil
 local CachedTargetData = nil
 local CachedTargetTime = 0
 local CachedTargetInterval = 0.05
-local MouseSensitivity = UserInputService.MouseDeltaSensitivity
 
 local Spinning = false
 local Triggering = false
@@ -273,14 +272,6 @@ do
         end
     end
 end
-
-local SensitivityChanged; SensitivityChanged = UserInputService:GetPropertyChangedSignal("MouseDeltaSensitivity"):Connect(function()
-    if not Fluent then
-        SensitivityChanged:Disconnect()
-    elseif not Aiming or not DEBUG and (getfenv().mousemoverel and IsComputer and Configuration.AimMode == "Mouse" or getfenv().hookmetamethod and getfenv().newcclosure and getfenv().checkcaller and getfenv().getnamecallmethod and Configuration.AimMode == "Silent") then
-        MouseSensitivity = UserInputService.MouseDeltaSensitivity
-    end
-end)
 
 
 --! UI Initializer
@@ -1646,7 +1637,6 @@ function FieldsHandler:ResetAimbotFields(SaveAiming, SaveTarget)
         Tween:Cancel()
         Tween = nil
     end
-    UserInputService.MouseDeltaSensitivity = MouseSensitivity
 end
 
 function FieldsHandler:ResetSecondaryFields()
@@ -1998,6 +1988,52 @@ function VisualsHandler:Visualize(Object)
         end
     end
     return nil
+end
+
+local function IsESPReady(Target)
+    if not Target then
+        return false
+    end
+    local Humanoid = Target:FindFirstChildWhichIsA("Humanoid")
+    if not Humanoid then
+        return false
+    end
+    if Configuration.AliveCheck and Humanoid.Health == 0 then
+        return false
+    end
+    if Configuration.GodCheck and (Humanoid.Health >= 10 ^ 36 or Target:FindFirstChildWhichIsA("ForceField")) then
+        return false
+    end
+    return true
+end
+
+local function GetCachedTargetData()
+    if Target ~= CachedTarget then
+        CachedTarget = Target
+        CachedTargetData = nil
+        CachedTargetTime = 0
+    end
+    if not CachedTarget then
+        return nil
+    end
+    if os.clock() - CachedTargetTime < CachedTargetInterval then
+        return CachedTargetData
+    end
+    CachedTargetTime = os.clock()
+    local IsTargetReady, Character, PartViewportPosition, PartWorldPosition, Magnitude, PartCFrame, TargetPart = IsReady(CachedTarget)
+    if IsTargetReady then
+        CachedTargetData = {
+            Character = Character,
+            PartViewportPosition = PartViewportPosition,
+            PartWorldPosition = PartWorldPosition,
+            Magnitude = Magnitude,
+            PartCFrame = PartCFrame,
+            TargetPart = TargetPart
+        }
+    else
+        CachedTargetData = nil
+    end
+    return CachedTargetData
 end
 
 local function IsESPReady(Target)
