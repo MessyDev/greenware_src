@@ -2046,6 +2046,23 @@ local function GetCachedTargetData()
     return CachedTargetData
 end
 
+local function IsESPReady(Target)
+    if not Target then
+        return false
+    end
+    local Humanoid = Target:FindFirstChildWhichIsA("Humanoid")
+    if not Humanoid then
+        return false
+    end
+    if Configuration.AliveCheck and Humanoid.Health == 0 then
+        return false
+    end
+    if Configuration.GodCheck and (Humanoid.Health >= 10 ^ 36 or Target:FindFirstChildWhichIsA("ForceField")) then
+        return false
+    end
+    return true
+end
+
 local Visuals = { FoV = VisualsHandler:Visualize("FoV") }
 
 function VisualsHandler:ClearVisual(Visual, Key)
