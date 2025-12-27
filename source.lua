@@ -243,7 +243,6 @@ local CachedTarget = nil
 local CachedTargetData = nil
 local CachedTargetTime = 0
 local CachedTargetInterval = 0.05
-local DefaultMouseDeltaSensitivity = UserInputService.MouseDeltaSensitivity
 local MouseSensitivity = UserInputService.MouseDeltaSensitivity
 
 local Spinning = false
@@ -2110,6 +2109,52 @@ local function IsESPReady(Target)
     return true
 end
 
+local function GetCachedTargetData()
+    if Target ~= CachedTarget then
+        CachedTarget = Target
+        CachedTargetData = nil
+        CachedTargetTime = 0
+    end
+    if not CachedTarget then
+        return nil
+    end
+    if os.clock() - CachedTargetTime < CachedTargetInterval then
+        return CachedTargetData
+    end
+    CachedTargetTime = os.clock()
+    local IsTargetReady, Character, PartViewportPosition, PartWorldPosition, Magnitude, PartCFrame, TargetPart = IsReady(CachedTarget)
+    if IsTargetReady then
+        CachedTargetData = {
+            Character = Character,
+            PartViewportPosition = PartViewportPosition,
+            PartWorldPosition = PartWorldPosition,
+            Magnitude = Magnitude,
+            PartCFrame = PartCFrame,
+            TargetPart = TargetPart
+        }
+    else
+        CachedTargetData = nil
+    end
+    return CachedTargetData
+end
+
+local function IsESPReady(Target)
+    if not Target then
+        return false
+    end
+    local Humanoid = Target:FindFirstChildWhichIsA("Humanoid")
+    if not Humanoid then
+        return false
+    end
+    if Configuration.AliveCheck and Humanoid.Health == 0 then
+        return false
+    end
+    if Configuration.GodCheck and (Humanoid.Health >= 10 ^ 36 or Target:FindFirstChildWhichIsA("ForceField")) then
+        return false
+    end
+    return true
+end
+
 local Visuals = { FoV = VisualsHandler:Visualize("FoV") }
 
 function VisualsHandler:ClearVisual(Visual, Key)
@@ -2615,9 +2660,6 @@ local AimbotLoop; AimbotLoop = RunService[UISettings.RenderingMode]:Connect(func
                             FieldsHandler:ResetAimbotFields(true)
                         end
                     elseif Configuration.AimMode == "Camera" then
-                        if typeof(DefaultMouseDeltaSensitivity) == "number" then
-                            UserInputService.MouseDeltaSensitivity = 0
-                        end
                         if Configuration.UseSensitivity then
                             Tween = TweenService:Create(workspace.CurrentCamera, TweenInfo.new(math.clamp(Configuration.Sensitivity, 9, 99) / 100, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), { CFrame = CFrame.new(workspace.CurrentCamera.CFrame.Position, TargetData.PartWorldPosition) })
                             Tween:Play()
@@ -2634,8 +2676,6 @@ local AimbotLoop; AimbotLoop = RunService[UISettings.RenderingMode]:Connect(func
             if not ok then
                 FieldsHandler:ResetAimbotFields(true)
             end
-        elseif typeof(DefaultMouseDeltaSensitivity) == "number" then
-            UserInputService.MouseDeltaSensitivity = DefaultMouseDeltaSensitivity
         end
     end
 end)
