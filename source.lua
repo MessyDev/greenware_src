@@ -243,6 +243,7 @@ local CachedTarget = nil
 local CachedTargetData = nil
 local CachedTargetTime = 0
 local CachedTargetInterval = 0.05
+local DefaultMouseDeltaSensitivity = UserInputService.MouseDeltaSensitivity
 local MouseSensitivity = UserInputService.MouseDeltaSensitivity
 
 local Spinning = false
@@ -2063,6 +2064,52 @@ local function IsESPReady(Target)
     return true
 end
 
+local function GetCachedTargetData()
+    if Target ~= CachedTarget then
+        CachedTarget = Target
+        CachedTargetData = nil
+        CachedTargetTime = 0
+    end
+    if not CachedTarget then
+        return nil
+    end
+    if os.clock() - CachedTargetTime < CachedTargetInterval then
+        return CachedTargetData
+    end
+    CachedTargetTime = os.clock()
+    local IsTargetReady, Character, PartViewportPosition, PartWorldPosition, Magnitude, PartCFrame, TargetPart = IsReady(CachedTarget)
+    if IsTargetReady then
+        CachedTargetData = {
+            Character = Character,
+            PartViewportPosition = PartViewportPosition,
+            PartWorldPosition = PartWorldPosition,
+            Magnitude = Magnitude,
+            PartCFrame = PartCFrame,
+            TargetPart = TargetPart
+        }
+    else
+        CachedTargetData = nil
+    end
+    return CachedTargetData
+end
+
+local function IsESPReady(Target)
+    if not Target then
+        return false
+    end
+    local Humanoid = Target:FindFirstChildWhichIsA("Humanoid")
+    if not Humanoid then
+        return false
+    end
+    if Configuration.AliveCheck and Humanoid.Health == 0 then
+        return false
+    end
+    if Configuration.GodCheck and (Humanoid.Health >= 10 ^ 36 or Target:FindFirstChildWhichIsA("ForceField")) then
+        return false
+    end
+    return true
+end
+
 local Visuals = { FoV = VisualsHandler:Visualize("FoV") }
 
 function VisualsHandler:ClearVisual(Visual, Key)
@@ -2532,54 +2579,63 @@ local AimbotLoop; AimbotLoop = RunService[UISettings.RenderingMode]:Connect(func
         end
         TrackingHandler:VisualizeESP()
         if Aiming then
-            local OldTarget = Target
-            local Closest = math.huge
-            if not IsReady(OldTarget) then
-                if OldTarget and not Configuration.OffAimbotAfterKill or not OldTarget then
-                    if Units and os.clock() - LastTargetScan >= 0.2 then
-                        LastTargetScan = os.clock()
-                        for _, Unit in next, Units:GetChildren() do
-                            if Unit ~= Player.Character then
-                                local IsCharacterReady, Character, PartViewportPosition = IsReady(Unit)
-                                if IsCharacterReady and PartViewportPosition[2] then
-                                    local Magnitude = (Vector2.new(Mouse.X, Mouse.Y) - Vector2.new(PartViewportPosition[1].X, PartViewportPosition[1].Y)).Magnitude
-                                    if Magnitude <= Closest and Magnitude <= (Configuration.FoVCheck and Configuration.FoVRadius or Closest) then
-                                        Target = Character
-                                        Closest = Magnitude
+            local ok = pcall(function()
+                local OldTarget = Target
+                local Closest = math.huge
+                if not IsReady(OldTarget) then
+                    if OldTarget and not Configuration.OffAimbotAfterKill or not OldTarget then
+                        if Units and os.clock() - LastTargetScan >= 0.2 then
+                            LastTargetScan = os.clock()
+                            for _, Unit in next, Units:GetChildren() do
+                                if Unit ~= Player.Character then
+                                    local IsCharacterReady, Character, PartViewportPosition = IsReady(Unit)
+                                    if IsCharacterReady and PartViewportPosition[2] then
+                                        local Magnitude = (Vector2.new(Mouse.X, Mouse.Y) - Vector2.new(PartViewportPosition[1].X, PartViewportPosition[1].Y)).Magnitude
+                                        if Magnitude <= Closest and Magnitude <= (Configuration.FoVCheck and Configuration.FoVRadius or Closest) then
+                                            Target = Character
+                                            Closest = Magnitude
+                                        end
                                     end
                                 end
                             end
                         end
+                    else
+                        FieldsHandler:ResetAimbotFields()
+                    end
+                end
+                local TargetData = GetCachedTargetData()
+                if TargetData then
+                    if not DEBUG and getfenv().mousemoverel and IsComputer and Configuration.AimMode == "Mouse" then
+                        if TargetData.PartViewportPosition[2] then
+                            FieldsHandler:ResetAimbotFields(true, true)
+                            local MouseLocation = UserInputService:GetMouseLocation()
+                            local Sensitivity = Configuration.UseSensitivity and Configuration.Sensitivity / 5 or 10
+                            getfenv().mousemoverel((TargetData.PartViewportPosition[1].X - MouseLocation.X) / Sensitivity, (TargetData.PartViewportPosition[1].Y - MouseLocation.Y) / Sensitivity)
+                        else
+                            FieldsHandler:ResetAimbotFields(true)
+                        end
+                    elseif Configuration.AimMode == "Camera" then
+                        if typeof(DefaultMouseDeltaSensitivity) == "number" then
+                            UserInputService.MouseDeltaSensitivity = 0
+                        end
+                        if Configuration.UseSensitivity then
+                            Tween = TweenService:Create(workspace.CurrentCamera, TweenInfo.new(math.clamp(Configuration.Sensitivity, 9, 99) / 100, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), { CFrame = CFrame.new(workspace.CurrentCamera.CFrame.Position, TargetData.PartWorldPosition) })
+                            Tween:Play()
+                        else
+                            workspace.CurrentCamera.CFrame = CFrame.new(workspace.CurrentCamera.CFrame.Position, TargetData.PartWorldPosition)
+                        end
+                    elseif not DEBUG and getfenv().hookmetamethod and getfenv().newcclosure and getfenv().checkcaller and getfenv().getnamecallmethod and Configuration.AimMode == "Silent" then
+                        FieldsHandler:ResetAimbotFields(true, true)
                     end
                 else
-                    FieldsHandler:ResetAimbotFields()
+                    FieldsHandler:ResetAimbotFields(true)
                 end
-            end
-            local TargetData = GetCachedTargetData()
-            if TargetData then
-                if not DEBUG and getfenv().mousemoverel and IsComputer and Configuration.AimMode == "Mouse" then
-                    if TargetData.PartViewportPosition[2] then
-                        FieldsHandler:ResetAimbotFields(true, true)
-                        local MouseLocation = UserInputService:GetMouseLocation()
-                        local Sensitivity = Configuration.UseSensitivity and Configuration.Sensitivity / 5 or 10
-                        getfenv().mousemoverel((TargetData.PartViewportPosition[1].X - MouseLocation.X) / Sensitivity, (TargetData.PartViewportPosition[1].Y - MouseLocation.Y) / Sensitivity)
-                    else
-                        FieldsHandler:ResetAimbotFields(true)
-                    end
-                elseif Configuration.AimMode == "Camera" then
-                    UserInputService.MouseDeltaSensitivity = 0
-                    if Configuration.UseSensitivity then
-                        Tween = TweenService:Create(workspace.CurrentCamera, TweenInfo.new(math.clamp(Configuration.Sensitivity, 9, 99) / 100, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), { CFrame = CFrame.new(workspace.CurrentCamera.CFrame.Position, TargetData.PartWorldPosition) })
-                        Tween:Play()
-                    else
-                        workspace.CurrentCamera.CFrame = CFrame.new(workspace.CurrentCamera.CFrame.Position, TargetData.PartWorldPosition)
-                    end
-                elseif not DEBUG and getfenv().hookmetamethod and getfenv().newcclosure and getfenv().checkcaller and getfenv().getnamecallmethod and Configuration.AimMode == "Silent" then
-                    FieldsHandler:ResetAimbotFields(true, true)
-                end
-            else
+            end)
+            if not ok then
                 FieldsHandler:ResetAimbotFields(true)
             end
+        elseif typeof(DefaultMouseDeltaSensitivity) == "number" then
+            UserInputService.MouseDeltaSensitivity = DefaultMouseDeltaSensitivity
         end
     end
 end)
