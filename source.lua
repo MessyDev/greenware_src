@@ -2165,6 +2165,9 @@ function ESPLibrary:Visualize()
         return
     elseif not self.Character then
         return self:Disconnect()
+    elseif not self.Character.Parent then
+        self:HideVisuals()
+        return
     end
     local Head = self.Character:FindFirstChild("Head")
     local HumanoidRootPart = self.Character:FindFirstChild("HumanoidRootPart")
@@ -2206,6 +2209,15 @@ function ESPLibrary:Visualize()
         if self.Billboard then
             self.Billboard.Enabled = false
         end
+    end
+end
+
+function ESPLibrary:HideVisuals()
+    if self.Highlight then
+        self.Highlight.Enabled = false
+    end
+    if self.Billboard then
+        self.Billboard.Enabled = false
     end
 end
 
@@ -2287,9 +2299,13 @@ local function ProcessESPQueue()
 end
 
 function TrackingHandler:VisualizeESP()
-    if not ShowingESP and not Configuration.SmartESP then
+    if not ShowingESP then
+        for _, Tracked in next, Tracking do
+            if Tracked then
+                Tracked:HideVisuals()
+            end
+        end
         return
-    end
     if os.clock() - LastESPUpdate < ESPUpdateInterval then
         return
     end
@@ -2315,6 +2331,7 @@ end
 
 function TrackingHandler:DisconnectTracking(Key)
     if Key and Tracking[Key] then
+        Tracking[Key]:HideVisuals()
         Tracking[Key]:Disconnect()
         Tracking[Key] = nil
     end
