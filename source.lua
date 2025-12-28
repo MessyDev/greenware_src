@@ -45,8 +45,8 @@ local InterfaceManager = {}
 
 function InterfaceManager:ImportSettings()
     pcall(function()
-        if not DEBUG and getfenv().isfile and getfenv().readfile and getfenv().isfile("UISettings.GreenKaboomer") and getfenv().readfile("UISettings.GreenKaboomer") then
-            for Key, Value in next, HttpService:JSONDecode(getfenv().readfile("UISettings.GreenKaboomer")) do
+        if not DEBUG and getfenv().isfile and getfenv().readfile and getfenv().isfile("UISettings.ohio_sigma_blud") and getfenv().readfile("UISettings.ohio_sigma_blud") then
+            for Key, Value in next, HttpService:JSONDecode(getfenv().readfile("UISettings.ohio_sigma_blud")) do
                 UISettings[Key] = Value
             end
         end
@@ -56,7 +56,7 @@ end
 function InterfaceManager:ExportSettings()
     pcall(function()
         if not DEBUG and getfenv().isfile and getfenv().readfile and getfenv().writefile then
-            getfenv().writefile("UISettings.GreenKaboomer", HttpService:JSONEncode(UISettings))
+            getfenv().writefile("UISettings.ohio_sigma_blud", HttpService:JSONEncode(UISettings))
         end
     end)
 end
@@ -85,8 +85,8 @@ end
 local ImportedConfiguration = {}
 
 pcall(function()
-    if not DEBUG and getfenv().isfile and getfenv().readfile and getfenv().isfile(string.format("%s.GreenKaboomer", game.GameId)) and getfenv().readfile(string.format("%s.GreenKaboomer", game.GameId)) and UISettings.AutoImport then
-        ImportedConfiguration = HttpService:JSONDecode(getfenv().readfile(string.format("%s.GreenKaboomer", game.GameId)))
+    if not DEBUG and getfenv().isfile and getfenv().readfile and getfenv().isfile(string.format("%s.ohio_sigma_blud", game.GameId)) and getfenv().readfile(string.format("%s.ohio_sigma_blud", game.GameId)) and UISettings.AutoImport then
+        ImportedConfiguration = HttpService:JSONDecode(getfenv().readfile(string.format("%s.ohio_sigma_blud", game.GameId)))
         for Key, Value in next, ImportedConfiguration do
             if Key == "FoVColour" or Key == "NameESPOutlineColour" or Key == "ESPColour" then
                 ImportedConfiguration[Key] = ColorsHandler:UnpackColour(Value)
@@ -282,7 +282,7 @@ end)
 
 do
     local Window = Fluent:CreateWindow({
-        Title = string.format("%s <b><i>%s</i></b>", string.format(MonthlyLabels[os.date("*t").month], "Realish Reborn Skidbot"), #Status > 0 and Status or "🔥FREE🔥"),
+        Title = string.format("%s <b><i>%s</i></b>", string.format(MonthlyLabels[os.date("*t").month], "Realish Reborn Skidbot"), #Status > 0 and Status or ""),
         SubTitle = "By @ttwiz_z",
         TabWidth = UISettings.TabWidth,
         Size = UDim2.fromOffset(table.unpack(UISettings.Size)),
@@ -296,8 +296,8 @@ do
     Window:SelectTab(1)
 
     Tabs.Aimbot:AddParagraph({
-        Title = string.format("%s 🔥FREE🔥", string.format(MonthlyLabels[os.date("*t").month], "Realish Reborn Skidbot")),
-        Content = "✨Universal Aim Assist Framework✨\nhttps://github.com/MessyDev/GreenAbWare"
+        Title = string.format("%s ", string.format(MonthlyLabels[os.date("*t").month], "Realish Reborn Skidbot")),
+        Content = "✨Universal Aim Assist Framework✨\nhttps://github.com/MessyDev/greenware_src"
     })
 
     local AimbotSection = Tabs.Aimbot:AddSection("Aimbot")
@@ -543,8 +543,8 @@ do
     Tabs.Bots = Window:AddTab({ Title = "Bots", Icon = "bot" })
 
     Tabs.Bots:AddParagraph({
-        Title = string.format("%s 🔥FREE🔥", string.format(MonthlyLabels[os.date("*t").month], "Realish Reborn Skidbot")),
-        Content = "✨Universal Aim Assist Framework✨\nhttps://github.com/MessyDev/GreenAbWare"
+        Title = string.format("%s ", string.format(MonthlyLabels[os.date("*t").month], "Realish Reborn Skidbot")),
+        Content = "✨Universal Aim Assist Framework✨\nhttps://github.com/MessyDev/greenware_src"
     })
 
     local SpinBotSection = Tabs.Bots:AddSection("SpinBot")
@@ -701,8 +701,8 @@ do
     Tabs.Checks = Window:AddTab({ Title = "Checks", Icon = "list-checks" })
 
     Tabs.Checks:AddParagraph({
-        Title = string.format("%s 🔥FREE🔥", string.format(MonthlyLabels[os.date("*t").month], "Realish Reborn Skidbot")),
-        Content = "✨Universal Aim Assist Framework✨\nhttps://github.com/MessyDev/GreenAbWare"
+        Title = string.format("%s ", string.format(MonthlyLabels[os.date("*t").month], "Realish Reborn Skidbot")),
+        Content = "✨Universal Aim Assist Framework✨\nhttps://github.com/MessyDev/greenware_src"
     })
 
     local SimpleChecksSection = Tabs.Checks:AddSection("Simple Checks")
@@ -1290,8 +1290,8 @@ do
     Tabs.Settings = Window:AddTab({ Title = "Settings", Icon = "settings" })
 
     Tabs.Settings:AddParagraph({
-        Title = string.format("%s 🔥FREE🔥", string.format(MonthlyLabels[os.date("*t").month], "Realish Reborn Skidbot")),
-        Content = "✨Universal Aim Assist Framework✨\nhttps://github.com/MessyDev/GreenAbWare"
+        Title = string.format("%s ", string.format(MonthlyLabels[os.date("*t").month], "Realish Reborn Skidbot")),
+        Content = "✨Universal Aim Assist Framework✨\nhttps://github.com/MessyDev/greenware_src"
     })
 
     local UISection = Tabs.Settings:AddSection("UI")
@@ -1425,8 +1425,8 @@ do
             Description = "Loads the Game Configuration File",
             Callback = function()
                 xpcall(function()
-                    if getfenv().isfile(string.format("%s.GreenKaboomer", game.GameId)) and getfenv().readfile(string.format("%s.GreenKaboomer", game.GameId)) then
-                        local ImportedConfiguration = HttpService:JSONDecode(getfenv().readfile(string.format("%s.GreenKaboomer", game.GameId)))
+                    if getfenv().isfile(string.format("%s.ohio_sigma_blud", game.GameId)) and getfenv().readfile(string.format("%s.ohio_sigma_blud", game.GameId)) then
+                        local ImportedConfiguration = HttpService:JSONDecode(getfenv().readfile(string.format("%s.ohio_sigma_blud", game.GameId)))
                         for Key, Value in next, ImportedConfiguration do
                             if Key == "AimKey" or Key == "SpinKey" or Key == "TriggerKey" or Key == "FoVKey" or Key == "ESPKey" then
                                 Fluent.Options[Key]:SetValue(Value)
@@ -1472,7 +1472,7 @@ do
                         end
                         Window:Dialog({
                             Title = "Configuration Manager",
-                            Content = string.format("Configuration File %s.GreenKaboomer has been successfully loaded!", game.GameId),
+                            Content = string.format("Configuration File %s.ohio_sigma_blud has been successfully loaded!", game.GameId),
                             Buttons = {
                                 {
                                     Title = "Confirm"
@@ -1482,7 +1482,7 @@ do
                     else
                         Window:Dialog({
                             Title = "Configuration Manager",
-                            Content = string.format("Configuration File %s.GreenKaboomer could not be found!", game.GameId),
+                            Content = string.format("Configuration File %s.ohio_sigma_blud could not be found!", game.GameId),
                             Buttons = {
                                 {
                                     Title = "Confirm"
@@ -1493,7 +1493,7 @@ do
                 end, function()
                     Window:Dialog({
                         Title = "Configuration Manager",
-                        Content = string.format("An Error occurred when loading the Configuration File %s.GreenKaboomer", game.GameId),
+                        Content = string.format("An Error occurred when loading the Configuration File %s.ohio_sigma_blud", game.GameId),
                         Buttons = {
                             {
                                 Title = "Confirm"
@@ -1520,10 +1520,10 @@ do
                         end
                     end
                     ExportedConfiguration = HttpService:JSONEncode(ExportedConfiguration)
-                    getfenv().writefile(string.format("%s.GreenKaboomer", game.GameId), ExportedConfiguration)
+                    getfenv().writefile(string.format("%s.ohio_sigma_blud", game.GameId), ExportedConfiguration)
                     Window:Dialog({
                         Title = "Configuration Manager",
-                        Content = string.format("Configuration File %s.GreenKaboomer has been successfully overwritten!", game.GameId),
+                        Content = string.format("Configuration File %s.ohio_sigma_blud has been successfully overwritten!", game.GameId),
                         Buttons = {
                             {
                                 Title = "Confirm"
@@ -1533,7 +1533,7 @@ do
                 end, function()
                     Window:Dialog({
                         Title = "Configuration Manager",
-                        Content = string.format("An Error occurred when overwriting the Configuration File %s.GreenKaboomer", game.GameId),
+                        Content = string.format("An Error occurred when overwriting the Configuration File %s.ohio_sigma_blud", game.GameId),
                         Buttons = {
                             {
                                 Title = "Confirm"
@@ -1548,11 +1548,11 @@ do
             Title = "Delete Configuration File",
             Description = "Removes the Game Configuration File",
             Callback = function()
-                if getfenv().isfile(string.format("%s.GreenKaboomer", game.GameId)) then
-                    getfenv().delfile(string.format("%s.GreenKaboomer", game.GameId))
+                if getfenv().isfile(string.format("%s.ohio_sigma_blud", game.GameId)) then
+                    getfenv().delfile(string.format("%s.ohio_sigma_blud", game.GameId))
                     Window:Dialog({
                         Title = "Configuration Manager",
-                        Content = string.format("Configuration File %s.GreenKaboomer has been successfully removed!", game.GameId),
+                        Content = string.format("Configuration File %s.ohio_sigma_blud has been successfully removed!", game.GameId),
                         Buttons = {
                             {
                                 Title = "Confirm"
@@ -1562,7 +1562,7 @@ do
                 else
                     Window:Dialog({
                         Title = "Configuration Manager",
-                        Content = string.format("Configuration File %s.GreenKaboomer could not be found!", game.GameId),
+                        Content = string.format("Configuration File %s.ohio_sigma_blud could not be found!", game.GameId),
                         Buttons = {
                             {
                                 Title = "Confirm"
@@ -1585,7 +1585,7 @@ local function Notify(Message)
         Fluent:Notify({
             Title = "Realish Reborn Skidbot",
             Content = Message,
-            SubContent = "By Green Kaboomer",
+            SubContent = "By ohio_sigma_blud",
             Duration = 1.5
         })
     end
@@ -2395,3 +2395,4 @@ local AimbotLoop; AimbotLoop = RunService[UISettings.RenderingMode]:Connect(func
     end
 
 end)
+
