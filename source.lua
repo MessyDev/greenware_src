@@ -282,7 +282,7 @@ end)
 
 do
     local Window = Fluent:CreateWindow({
-        Title = string.format("%s <b><i>%s</i></b>", string.format(MonthlyLabels[os.date("*t").month], "Green's Mousebot"), #Status > 0 and Status or "🔥FREE🔥"),
+        Title = string.format("%s <b><i>%s</i></b>", string.format(MonthlyLabels[os.date("*t").month], "Realish Reborn Skidbot"), #Status > 0 and Status or "🔥FREE🔥"),
         SubTitle = "By @ttwiz_z",
         TabWidth = UISettings.TabWidth,
         Size = UDim2.fromOffset(table.unpack(UISettings.Size)),
@@ -296,7 +296,7 @@ do
     Window:SelectTab(1)
 
     Tabs.Aimbot:AddParagraph({
-        Title = string.format("%s 🔥FREE🔥", string.format(MonthlyLabels[os.date("*t").month], "Green's Mousebot")),
+        Title = string.format("%s 🔥FREE🔥", string.format(MonthlyLabels[os.date("*t").month], "Realish Reborn Skidbot")),
         Content = "✨Universal Aim Assist Framework✨\nhttps://github.com/MessyDev/GreenAbWare"
     })
 
@@ -435,7 +435,7 @@ do
             Configuration.AimPartDropdownValues = {}
             AimPartDropdown:SetValues(Configuration.AimPartDropdownValues)
             Window:Dialog({
-                Title = string.format(MonthlyLabels[os.date("*t").month], "Green's Mousebot"),
+                Title = string.format(MonthlyLabels[os.date("*t").month], "Realish Reborn Skidbot"),
                 Content = Items == 0 and "Nothing has been cleared!" or Items == 1 and "1 Item has been cleared!" or string.format("%s Items have been cleared!", Items),
                 Buttons = {
                     {
@@ -543,7 +543,7 @@ do
     Tabs.Bots = Window:AddTab({ Title = "Bots", Icon = "bot" })
 
     Tabs.Bots:AddParagraph({
-        Title = string.format("%s 🔥FREE🔥", string.format(MonthlyLabels[os.date("*t").month], "Green's Mousebot")),
+        Title = string.format("%s 🔥FREE🔥", string.format(MonthlyLabels[os.date("*t").month], "Realish Reborn Skidbot")),
         Content = "✨Universal Aim Assist Framework✨\nhttps://github.com/MessyDev/GreenAbWare"
     })
 
@@ -644,7 +644,7 @@ do
             Configuration.SpinPartDropdownValues = {}
             SpinPartDropdown:SetValues(Configuration.SpinPartDropdownValues)
             Window:Dialog({
-                Title = string.format(MonthlyLabels[os.date("*t").month], "Green's Mousebot"),
+                Title = string.format(MonthlyLabels[os.date("*t").month], "Realish Reborn Skidbot"),
                 Content = Items == 0 and "Nothing has been cleared!" or Items == 1 and "1 Item has been cleared!" or string.format("%s Items have been cleared!", Items),
                 Buttons = {
                     {
@@ -701,7 +701,7 @@ do
     Tabs.Checks = Window:AddTab({ Title = "Checks", Icon = "list-checks" })
 
     Tabs.Checks:AddParagraph({
-        Title = string.format("%s 🔥FREE🔥", string.format(MonthlyLabels[os.date("*t").month], "Green's Mousebot")),
+        Title = string.format("%s 🔥FREE🔥", string.format(MonthlyLabels[os.date("*t").month], "Realish Reborn Skidbot")),
         Content = "✨Universal Aim Assist Framework✨\nhttps://github.com/MessyDev/GreenAbWare"
     })
 
@@ -901,7 +901,7 @@ do
             local Items = #Configuration.IgnoredPlayers
             IgnoredPlayersDropdown:SetValue({})
             Window:Dialog({
-                Title = string.format(MonthlyLabels[os.date("*t").month], "Green's Mousebot"),
+                Title = string.format(MonthlyLabels[os.date("*t").month], "Realish Reborn Skidbot"),
                 Content = Items == 0 and "Nothing has been deselected!" or Items == 1 and "1 Item has been deselected!" or string.format("%s Items have been deselected!", Items),
                 Buttons = {
                     {
@@ -928,7 +928,7 @@ do
             Configuration.IgnoredPlayersDropdownValues = Cache
             IgnoredPlayersDropdown:SetValues(Configuration.IgnoredPlayersDropdownValues)
             Window:Dialog({
-                Title = string.format(MonthlyLabels[os.date("*t").month], "Green's Mousebot"),
+                Title = string.format(MonthlyLabels[os.date("*t").month], "Realish Reborn Skidbot"),
                 Content = Items == 0 and "Nothing has been cleared!" or Items == 1 and "1 Item has been cleared!" or string.format("%s Items have been cleared!", Items),
                 Buttons = {
                     {
@@ -1004,7 +1004,7 @@ do
             local Items = #Configuration.TargetPlayers
             TargetPlayersDropdown:SetValue({})
             Window:Dialog({
-                Title = string.format(MonthlyLabels[os.date("*t").month], "Green's Mousebot"),
+                Title = string.format(MonthlyLabels[os.date("*t").month], "Realish Reborn Skidbot"),
                 Content = Items == 0 and "Nothing has been deselected!" or Items == 1 and "1 Item has been deselected!" or string.format("%s Items have been deselected!", Items),
                 Buttons = {
                     {
@@ -1031,7 +1031,7 @@ do
             Configuration.TargetPlayersDropdownValues = Cache
             TargetPlayersDropdown:SetValues(Configuration.TargetPlayersDropdownValues)
             Window:Dialog({
-                Title = string.format(MonthlyLabels[os.date("*t").month], "Green's Mousebot"),
+                Title = string.format(MonthlyLabels[os.date("*t").month], "Realish Reborn Skidbot"),
                 Content = Items == 0 and "Nothing has been cleared!" or Items == 1 and "1 Item has been cleared!" or string.format("%s Items have been cleared!", Items),
                 Buttons = {
                     {
@@ -1048,11 +1048,6 @@ do
     PremiumCheckToggle:OnChanged(function(Value)
         Configuration.PremiumCheck = Value
     end)
-
-    PremiumChecksSection:AddParagraph({
-        Title = string.format("%s 💫PREMIUM💫", string.format(MonthlyLabels[os.date("*t").month], "Green's Mousebot")),
-        Content = "✨Upgrade to unlock all Options✨\nContact @ttwiz_z via Discord to buy"
-    })
 
     if DEBUG or getfenv().Drawing and getfenv().Drawing.new then
         Tabs.Visuals = Window:AddTab({ Title = "Visuals", Icon = "box" })
@@ -1295,7 +1290,7 @@ do
     Tabs.Settings = Window:AddTab({ Title = "Settings", Icon = "settings" })
 
     Tabs.Settings:AddParagraph({
-        Title = string.format("%s 🔥FREE🔥", string.format(MonthlyLabels[os.date("*t").month], "Green's Mousebot")),
+        Title = string.format("%s 🔥FREE🔥", string.format(MonthlyLabels[os.date("*t").month], "Realish Reborn Skidbot")),
         Content = "✨Universal Aim Assist Framework✨\nhttps://github.com/MessyDev/GreenAbWare"
     })
 
@@ -1400,7 +1395,7 @@ do
             UISettings.RenderingMode = Value
             InterfaceManager:ExportSettings()
             Window:Dialog({
-                Title = string.format(MonthlyLabels[os.date("*t").month], "Green's Mousebot"),
+                Title = string.format(MonthlyLabels[os.date("*t").month], "Realish Reborn Skidbot"),
                 Content = "Changes will take effect after the Restart!",
                 Buttons = {
                     {
@@ -1580,40 +1575,6 @@ do
     else
         ShowWarning = true
     end
-
-    if UISettings.ShowWarnings then
-        if DEBUG then
-            Window:Dialog({
-                Title = "Warning",
-                Content = "Running in Debugging Mode. Some Features may not work properly.",
-                Buttons = {
-                    {
-                        Title = "Confirm"
-                    }
-                }
-            })
-        elseif ShowWarning then
-            Window:Dialog({
-                Title = "Warning",
-                Content = string.format("Your Software does not support all the Features of %s 🔥FREE🔥!", string.format(MonthlyLabels[os.date("*t").month], "Open Aimbot")),
-                Buttons = {
-                    {
-                        Title = "Confirm"
-                    }
-                }
-            })
-        else
-            Window:Dialog({
-                Title = string.format("%s 💫PREMIUM💫", string.format(MonthlyLabels[os.date("*t").month], "Green's Mousebot")),
-                Content = "✨Upgrade to unlock all Options✨ – Contact @ttwiz_z via Discord to buy",
-                Buttons = {
-                    {
-                        Title = "Confirm"
-                    }
-                }
-            })
-        end
-    end
 end
 
 
@@ -1622,7 +1583,7 @@ end
 local function Notify(Message)
     if Fluent and typeof(Message) == "string" then
         Fluent:Notify({
-            Title = "Green's Mousebot",
+            Title = "Realish Reborn Skidbot",
             Content = Message,
             SubContent = "By Green Kaboomer",
             Duration = 1.5
@@ -2432,4 +2393,5 @@ local AimbotLoop; AimbotLoop = RunService[UISettings.RenderingMode]:Connect(func
             end
         end
     end
+
 end)
