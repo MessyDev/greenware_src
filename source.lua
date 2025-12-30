@@ -1744,7 +1744,16 @@ function MathHandler:CalculateDirection(Origin, Position, Magnitude)
 end
 
 function MathHandler:CalculateChance(Percentage)
-    return typeof(Percentage) == "number" and math.round(math.clamp(Percentage, 1, 100)) / 100 >= math.round(Random.new():NextNumber() * 100) / 100 or false
+    if typeof(Percentage) ~= "number" then
+        return false
+    end
+    Percentage = math.round(math.clamp(Percentage, 0, 100))
+    if Percentage <= 0 then
+        return false
+    elseif Percentage >= 100 then
+        return true
+    end
+    return Percentage / 100 >= math.round(Random.new():NextNumber() * 100) / 100
 end
 
 function MathHandler:Abbreviate(Number)
