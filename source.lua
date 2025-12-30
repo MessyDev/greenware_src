@@ -1918,19 +1918,35 @@ do
             local Arguments = { ... }
             local self = Arguments[1]
             local TargetData = GetCachedTargetData()
-            if Fluent and not getfenv().checkcaller() and Configuration.AimMode == "Silent" and Aiming and TargetData and TargetData.PartViewportPosition[2] and MathHandler:CalculateChance(Configuration.SilentAimChance) then
+            if Fluent and not getfenv().checkcaller() and Configuration.AimMode == "Silent" and Aiming and MathHandler:CalculateChance(Configuration.SilentAimChance) then
                 if table.find(Configuration.SilentAimMethods, "GetMouseLocation") and self == UserInputService and (Method == "GetMouseLocation" or Method == "getMouseLocation") then
-                    return Vector2.new(TargetData.PartViewportPosition[1].X, TargetData.PartViewportPosition[1].Y)
+                    if TargetData and TargetData.PartViewportPosition[2] then
+                        return Vector2.new(TargetData.PartViewportPosition[1].X, TargetData.PartViewportPosition[1].Y)
+                    end
+                    local MouseLocation = UserInputService:GetMouseLocation()
+                    return Vector2.new(MouseLocation.X, MouseLocation.Y)
                 elseif table.find(Configuration.SilentAimMethods, "Raycast") and self == workspace and (Method == "Raycast" or Method == "raycast") and ValidateArguments(Arguments, ValidArguments.Raycast) then
+                    if not TargetData then
+                        return OldNameCall(...)
+                    end
                     Arguments[3] = MathHandler:CalculateDirection(Arguments[2], TargetData.PartWorldPosition, TargetData.Magnitude)
                     return OldNameCall(table.unpack(Arguments))
                 elseif table.find(Configuration.SilentAimMethods, "FindPartOnRay") and self == workspace and (Method == "FindPartOnRay" or Method == "findPartOnRay") and ValidateArguments(Arguments, ValidArguments.FindPartOnRay) then
+                    if not TargetData then
+                        return OldNameCall(...)
+                    end
                     Arguments[2] = Ray.new(Arguments[2].Origin, MathHandler:CalculateDirection(Arguments[2].Origin, TargetData.PartWorldPosition, TargetData.Magnitude))
                     return OldNameCall(table.unpack(Arguments))
                 elseif table.find(Configuration.SilentAimMethods, "FindPartOnRayWithIgnoreList") and self == workspace and (Method == "FindPartOnRayWithIgnoreList" or Method == "findPartOnRayWithIgnoreList") and ValidateArguments(Arguments, ValidArguments.FindPartOnRayWithIgnoreList) then
+                    if not TargetData then
+                        return OldNameCall(...)
+                    end
                     Arguments[2] = Ray.new(Arguments[2].Origin, MathHandler:CalculateDirection(Arguments[2].Origin, TargetData.PartWorldPosition, TargetData.Magnitude))
                     return OldNameCall(table.unpack(Arguments))
                 elseif table.find(Configuration.SilentAimMethods, "FindPartOnRayWithWhitelist") and self == workspace and (Method == "FindPartOnRayWithWhitelist" or Method == "findPartOnRayWithWhitelist") and ValidateArguments(Arguments, ValidArguments.FindPartOnRayWithWhitelist) then
+                    if not TargetData then
+                        return OldNameCall(...)
+                    end
                     Arguments[2] = Ray.new(Arguments[2].Origin, MathHandler:CalculateDirection(Arguments[2].Origin, TargetData.PartWorldPosition, TargetData.Magnitude))
                     return OldNameCall(table.unpack(Arguments))
                 end
@@ -1988,6 +2004,52 @@ function VisualsHandler:Visualize(Object)
         end
     end
     return nil
+end
+
+local function IsESPReady(Target)
+    if not Target then
+        return false
+    end
+    local Humanoid = Target:FindFirstChildWhichIsA("Humanoid")
+    if not Humanoid then
+        return false
+    end
+    if Configuration.AliveCheck and Humanoid.Health == 0 then
+        return false
+    end
+    if Configuration.GodCheck and (Humanoid.Health >= 10 ^ 36 or Target:FindFirstChildWhichIsA("ForceField")) then
+        return false
+    end
+    return true
+end
+
+local function GetCachedTargetData()
+    if Target ~= CachedTarget then
+        CachedTarget = Target
+        CachedTargetData = nil
+        CachedTargetTime = 0
+    end
+    if not CachedTarget then
+        return nil
+    end
+    if os.clock() - CachedTargetTime < CachedTargetInterval then
+        return CachedTargetData
+    end
+    CachedTargetTime = os.clock()
+    local IsTargetReady, Character, PartViewportPosition, PartWorldPosition, Magnitude, PartCFrame, TargetPart = IsReady(CachedTarget)
+    if IsTargetReady then
+        CachedTargetData = {
+            Character = Character,
+            PartViewportPosition = PartViewportPosition,
+            PartWorldPosition = PartWorldPosition,
+            Magnitude = Magnitude,
+            PartCFrame = PartCFrame,
+            TargetPart = TargetPart
+        }
+    else
+        CachedTargetData = nil
+    end
+    return CachedTargetData
 end
 
 local function IsESPReady(Target)
@@ -2388,21 +2450,19 @@ function ESPLibrary:Visualize()
         self.DistanceLabel.TextColor3 = baseColour
         self.DistanceLabel.TextStrokeColor3 = outlineColour
     else
-        if self.Highlight then
-            self.Highlight.Enabled = false
-        end
-        if self.Billboard then
-            self.Billboard.Enabled = false
-        end
+        self:HideVisuals()
+        return self:Disconnect()
     end
 end
 
 function ESPLibrary:HideVisuals()
     if self.Highlight then
         self.Highlight.Enabled = false
+        self.Highlight.Adornee = nil
     end
     if self.Billboard then
         self.Billboard.Enabled = false
+        self.Billboard.Adornee = nil
     end
 end
 
